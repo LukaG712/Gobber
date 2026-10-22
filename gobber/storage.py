@@ -1,7 +1,9 @@
 """SQLite storage backend for Gobber."""
 
 import json
+import os
 import sqlite3
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -18,11 +20,24 @@ from gobber.models import (
 )
 
 
+def _default_db_path() -> str:
+    """Return a writable default database path.
+
+    Tries /app/data/gobber.db first, then falls back to a temp directory.
+    """
+    default = "/app/data/gobber.db"
+    try:
+        Path(default).parent.mkdir(parents=True, exist_ok=True)
+        return default
+    except (PermissionError, OSError):
+        return os.path.join(tempfile.gettempdir(), "gobber.db")
+
+
 class Storage:
     """SQLite-backed storage for all Gobber data."""
 
-    def __init__(self, db_path: str = "/app/data/gobber.db"):
-        self.db_path = Path(db_path)
+    def __init__(self, db_path: str | None = None):
+        self.db_path = Path(db_path or _default_db_path())
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 

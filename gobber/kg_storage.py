@@ -2,8 +2,10 @@
 
 import json
 import math
+import os
 import re
 import sqlite3
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID
@@ -11,11 +13,24 @@ from uuid import UUID
 from gobber.kg_models import Note, SearchResult
 
 
+def _default_db_path() -> str:
+    """Return a writable default database path.
+
+    Tries /app/data/gobber.db first, then falls back to a temp directory.
+    """
+    default = "/app/data/gobber.db"
+    try:
+        Path(default).parent.mkdir(parents=True, exist_ok=True)
+        return default
+    except (PermissionError, OSError):
+        return os.path.join(tempfile.gettempdir(), "gobber.db")
+
+
 class KnowledgeGraphStorage:
     """SQLite-backed storage for knowledge graph data (notes, links, embeddings)."""
 
-    def __init__(self, db_path: str = "/app/data/gobber.db"):
-        self.db_path = Path(db_path)
+    def __init__(self, db_path: str | None = None):
+        self.db_path = Path(db_path or _default_db_path())
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 

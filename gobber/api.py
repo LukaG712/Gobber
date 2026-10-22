@@ -26,7 +26,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-storage = Storage(db_path=os.getenv("DB_PATH", "/app/data/gobber.db"))
+storage = Storage(db_path=os.getenv("DB_PATH"))
 API_KEY = os.getenv("API_KEY", "Gobber-dev-key-change-me")
 kg = KnowledgeGraph()
 

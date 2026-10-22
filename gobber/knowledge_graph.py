@@ -27,7 +27,7 @@ class KnowledgeGraph:
     def __init__(
         self,
         vault_path: str | None = None,
-        db_path: str = "/app/data/gobber.db",
+        db_path: str | None = None,
         shrewd_url: str | None = None,
         shrewd_api_key: str | None = None,
         embedding_model: str = "nomic-embed-text",
@@ -36,7 +36,7 @@ class KnowledgeGraph:
         self.shrewd_url = shrewd_url or os.getenv("SHREWD_URL", "http://localhost:8089")
         self.shrewd_api_key = shrewd_api_key or os.getenv("SHREWD_API_KEY", "")
         self.embedding_model = embedding_model or os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-        self.storage = KnowledgeGraphStorage(db_path)
+        self.storage = KnowledgeGraphStorage(db_path or os.getenv("DB_PATH"))
         self._note_title_map: dict[str, UUID] = {}  # Maps note titles to IDs for link resolution
 
     def scan_vault(self) -> list[Note]:
