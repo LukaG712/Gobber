@@ -396,3 +396,117 @@ async def delete_vault_note(note_id: str, authorization: Optional[str] = Header(
 async def get_vault_stats(authorization: Optional[str] = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     return kg.get_stats()
+
+
+# ─── Vector Embeddings ────────────────────────────────────────────
+
+@app.post("/api/embeddings/generate")
+async def generate_embedding(
+    data: dict[str, Any],
+    authorization: Optional[str] = Header(None),
+) -> dict[str, Any]:
+    """Generate an embedding vector for the given text.
+
+    Uses Shrewd service for embedding generation with fallback to hash-based embedding.
+
+    Args:
+        data: Dict with 'text' key containing the text to embed.
+        authorization: Bearer token for authentication.
+
+    Returns:
+        Dict with 'embedding' (list of floats) and 'model' used.
+    """
+    verify_bearer(authorization)
+    text = data.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+
+    embedding = await kg.generate_embedding(text)
+    model_used = kg.embedding_model
+
+    if embedding is None:
+        # Fallback to hash-based embedding
+        embedding = kg._generate_fallback_embedding(text)
+        model_used = "fallback-hash"
+
+    return {
+        "embedding": embedding,
+        "model": model_used,
+        "dimensions": len(embedding),
+    }
+
+
+@app.post("/api/embeddings/search")
+async def search_embeddings(
+    data: dict[str, Any],
+    authorization: Optional[str] = Header(None),
+) -> list[dict[str, Any]]:
+    """Semantic search using vector embeddings.
+
+    Converts the query to an embedding and finds similar notes.
+
+    Args:
+        data: Dict with 'query' key containing the search query.
+        authorization: Bearer token for authentication.
+
+    Returns:
+        List of search results with note info and similarity scores.
+    """
+    verify_bearer(authorization)
+    query = data.get("query", "")
+    limit = data.get("limit", 10)
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required")
+
+    results = await kg.search(query, limit=limit)
+    return [r.to_dict() for r in results]
+
+
+@app.get("/api/embeddings/stats")
+async def get_embedding_stats(authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    """Get embedding statistics.
+
+    Returns:
+        Dict with embedding count, model info, and related stats.
+    """
+    verify_bearer(authorization)
+    stats = kg.get_stats()
+    return {
+        "total_notes": stats.get("total_notes", 0),
+        "total_embeddings": stats.get("total_embeddings", 0),
+        "embedding_model": kg.embedding_model,
+        "shrewd_url": kg.shrewd_url,
+    }
+
+
+@app.post("/api/embeddings/batch")
+async def generate_batch_embeddings(
+    data: dict[str, Any],
+    authorization: Optional[str] = Header(None),
+) -> list[dict[str, Any]]:
+    """Generate embeddings for multiple texts in batch.
+
+    Args:
+        data: Dict with 'texts' key containing a list of text strings.
+        authorization: Bearer token for authentication.
+
+    Returns:
+        List of dicts with 'text' and 'embedding' keys.
+    """
+    verify_bearer(authorization)
+    texts = data.get("texts", [])
+    if not texts:
+        raise HTTPException(status_code=400, detail="Texts list is required")
+
+    results = []
+    for text in texts:
+        embedding = await kg.generate_embedding(text)
+        if embedding is None:
+            embedding = kg._generate_fallback_embedding(text)
+        results.append({
+            "text": text[:100],  # Truncate for response
+            "embedding": embedding,
+            "dimensions": len(embedding),
+        })
+
+    return results
