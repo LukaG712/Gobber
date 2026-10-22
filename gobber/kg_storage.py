@@ -202,6 +202,141 @@ class KnowledgeGraphStorage:
                 return None
             return json.loads(row["embedding"])
 
+    def keyword_search(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> list[tuple[str, float]]:
+        """Search for notes by keyword matching in title and content.
+
+        Uses TF-IDF-like scoring: matches in title are weighted higher than
+        matches in content. Returns (note_id, score) tuples sorted by score.
+
+        Args:
+            query: Keyword query string.
+            limit: Maximum number of results.
+        """
+        if not query.strip():
+            return []
+
+        # Tokenize query into individual terms
+        terms = re.findall(r'\w[\w-]*', query.lower())
+        if not terms:
+            return []
+
+        with self._get_conn() as conn:
+            rows = conn.execute("SELECT id, title, content FROM notes").fetchall()
+
+        results: dict[str, float] = {}
+        for row in rows:
+            note_id = row["id"]
+            title = row["title"].lower()
+            content = row["content"].lower()
+
+            score = 0.0
+            for term in terms:
+                # Title matches weighted 10x higher
+                title_count = title.count(term)
+                if title_count > 0:
+                    score += title_count * 10.0
+
+                # Exact phrase match in content
+                if term in content:
+                    content_count = content.count(term)
+                    score += content_count * 1.0
+
+                # Bonus for whole word matches
+                whole_word_pattern = rf'\b{re.escape(term)}\b'
+                whole_word_count = len(re.findall(whole_word_pattern, content))
+                if whole_word_count > 0:
+                    score += whole_word_count * 2.0
+
+            if score > 0:
+                results[note_id] = results.get(note_id, 0.0) + score
+
+        # Normalize scores by number of notes to prevent bias toward larger corpora
+        if results:
+            max_score = max(results.values())
+            if max_score > 0:
+                results = {nid: s / max_score for nid, s in results.items()}
+
+        # Sort by score descending and limit
+        sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)[:limit]
+        return sorted_results
+
+    def hybrid_search(
+        self,
+        query: str,
+        query_embedding: list[float],
+        limit: int = 10,
+        semantic_weight: float = 0.7,
+        keyword_weight: float = 0.3,
+        user_id: str | None = None,
+        project_id: str | None = None,
+        session_id: str | None = None,
+    ) -> list[SearchResult]:
+        """Hybrid search combining semantic similarity and keyword matching.
+
+        Combines cosine similarity scores with keyword matching scores using
+        configurable weights. This ensures exact term matches are found even
+        when semantic similarity is low.
+
+        Args:
+            query: Original query string for keyword matching.
+            query_embedding: Query embedding vector for semantic search.
+            limit: Maximum number of results.
+            semantic_weight: Weight for semantic similarity (0-1).
+            keyword_weight: Weight for keyword matching (0-1).
+            user_id: Optional user ID to scope results.
+            project_id: Optional project ID to scope results.
+            session_id: Optional session ID to scope results.
+        """
+        # Get semantic results
+        semantic_results: dict[str, float] = {}
+        with self._get_conn() as conn:
+            rows = conn.execute("SELECT note_id, embedding FROM note_embeddings").fetchall()
+
+        for row in rows:
+            note_embedding = json.loads(row["embedding"])
+            score = cosine_similarity(query_embedding, note_embedding)
+            if score > 0:
+                semantic_results[row["note_id"]] = score
+
+        # Get keyword results
+        keyword_results = self.keyword_search(query, limit=limit * 2)
+        keyword_map = {nid: score for nid, score in keyword_results}
+
+        # Merge results: combine scores from both methods
+        all_note_ids = set(semantic_results.keys()) | set(keyword_map.keys())
+        combined_scores: dict[str, float] = {}
+
+        for note_id in all_note_ids:
+            sem_score = semantic_results.get(note_id, 0.0)
+            kw_score = keyword_map.get(note_id, 0.0)
+            combined = (sem_score * semantic_weight) + (kw_score * keyword_weight)
+            if combined > 0:
+                combined_scores[note_id] = combined
+
+        # Sort by combined score descending and limit
+        sorted_results = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)[:limit]
+
+        # Fetch full note data with optional scoping
+        search_results = []
+        for note_id, score in sorted_results:
+            note = self.get_note(note_id)
+            if note:
+                # Apply scope filters (stored in note metadata/tags)
+                if user_id and user_id not in (note.title + note.file_path):
+                    continue
+                if project_id and project_id not in (note.title + note.file_path):
+                    continue
+
+                note_embedding = self.get_embedding(note_id)
+                context = extract_relevant_context(note.content, query_embedding, note_embedding)
+                search_results.append(SearchResult(note=note, score=score, context=context))
+
+        return search_results
+
     def semantic_search(
         self,
         query_embedding: list[float],
@@ -211,7 +346,7 @@ class KnowledgeGraphStorage:
         session_id: str | None = None,
     ) -> list[SearchResult]:
         """Search for notes by cosine similarity with the query embedding.
-        
+
         Args:
             query_embedding: Query embedding vector.
             limit: Maximum number of results.
@@ -244,7 +379,8 @@ class KnowledgeGraphStorage:
                 if project_id and project_id not in (note.title + note.file_path):
                     continue
 
-                context = extract_relevant_context(note.content, query_embedding, note_embedding if (note_embedding := self.get_embedding(note_id)) else None)
+                note_embedding = self.get_embedding(note_id)
+                context = extract_relevant_context(note.content, query_embedding, note_embedding)
                 search_results.append(SearchResult(note=note, score=score, context=context))
 
         return search_results

@@ -295,19 +295,34 @@ class KnowledgeGraph:
         user_id: Optional[str] = None,
         project_id: Optional[str] = None,
         session_id: Optional[str] = None,
+        use_hybrid: bool = True,
     ) -> list[SearchResult]:
-        """Semantic search: convert query to embedding, then find similar notes.
-        
+        """Search notes using hybrid semantic + keyword matching.
+
+        By default uses hybrid search which combines cosine similarity with
+        keyword matching. Falls back to semantic-only if hybrid is disabled.
+
         Args:
             query: Search query text.
             limit: Maximum number of results.
             user_id: Optional user ID to scope results.
             project_id: Optional project ID to scope results.
             session_id: Optional session ID to scope results.
+            use_hybrid: If True, combine semantic and keyword results.
         """
         query_embedding = await self.generate_embedding(query)
         if query_embedding is None:
             query_embedding = self._generate_fallback_embedding(query)
+
+        if use_hybrid:
+            return self.storage.hybrid_search(
+                query,
+                query_embedding,
+                limit=limit,
+                user_id=user_id,
+                project_id=project_id,
+                session_id=session_id,
+            )
 
         return self.storage.semantic_search(
             query_embedding,
