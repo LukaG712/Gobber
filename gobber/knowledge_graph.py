@@ -1,13 +1,11 @@
 """Core knowledge graph logic: vault scanning, embedding generation, and index management."""
 
-import asyncio
 import logging
 import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import httpx
 
@@ -28,10 +26,10 @@ class KnowledgeGraph:
 
     def __init__(
         self,
-        vault_path: Optional[str] = None,
+        vault_path: str | None = None,
         db_path: str = "/app/data/gobber.db",
-        shrewd_url: Optional[str] = None,
-        shrewd_api_key: Optional[str] = None,
+        shrewd_url: str | None = None,
+        shrewd_api_key: str | None = None,
         embedding_model: str = "nomic-embed-text",
     ):
         self.vault_path = Path(vault_path or os.getenv("OBSIDIAN_VAULT_PATH", ""))
@@ -61,14 +59,13 @@ class KnowledgeGraph:
         logger.info(f"Scanned {len(notes)} notes from {len(md_files)} .md files")
         return notes
 
-    def _parse_note(self, file_path: Path) -> Optional[Note]:
+    def _parse_note(self, file_path: Path) -> Note | None:
         """Parse a single markdown file into a Note object."""
         content = file_path.read_text(encoding="utf-8")
         relative_path = str(file_path.relative_to(self.vault_path))
 
         # Extract frontmatter
         title = file_path.stem
-        frontmatter = None
         match = FRONTMATTER_PATTERN.match(content)
         if match:
             frontmatter_str = match.group(1)
@@ -108,7 +105,7 @@ class KnowledgeGraph:
                 updated_at=now,
             )
 
-    async def generate_embedding(self, text: str) -> Optional[list[float]]:
+    async def generate_embedding(self, text: str) -> list[float] | None:
         """Generate an embedding vector for the given text using Shrewd service."""
         if not text.strip():
             return None
@@ -226,7 +223,7 @@ class KnowledgeGraph:
 
         return self.storage.semantic_search(query_embedding, limit=limit)
 
-    def get_note(self, note_id: str) -> Optional[Note]:
+    def get_note(self, note_id: str) -> Note | None:
         """Get a note by ID."""
         return self.storage.get_note(note_id)
 

@@ -1,20 +1,20 @@
 """SQLite storage backend for Gobber."""
 
-import sqlite3
 import json
+import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from gobber.models import (
-    Webhook,
-    WebhookDelivery,
     AnalyticsEvent,
-    FeatureFlag,
     CacheEntry,
+    FeatureFlag,
     Role,
     UserRole,
+    Webhook,
+    WebhookDelivery,
 )
 
 
@@ -152,7 +152,7 @@ class Storage:
             )
         return webhook
 
-    def get_webhook(self, webhook_id: str) -> Optional[Webhook]:
+    def get_webhook(self, webhook_id: str) -> Webhook | None:
         with self._get_conn() as conn:
             row = conn.execute("SELECT * FROM webhooks WHERE id = ?", (webhook_id,)).fetchone()
             if row is None:
@@ -167,7 +167,7 @@ class Storage:
                 rows = conn.execute("SELECT * FROM webhooks ORDER BY created_at DESC").fetchall()
             return [self._row_to_webhook(r) for r in rows]
 
-    def update_webhook(self, webhook_id: str, **kwargs: Any) -> Optional[Webhook]:
+    def update_webhook(self, webhook_id: str, **kwargs: Any) -> Webhook | None:
         if not kwargs:
             return self.get_webhook(webhook_id)
         sets = []
@@ -217,7 +217,7 @@ class Storage:
             )
         return delivery
 
-    def list_deliveries(self, webhook_id: Optional[str] = None, limit: int = 50) -> list[WebhookDelivery]:
+    def list_deliveries(self, webhook_id: str | None = None, limit: int = 50) -> list[WebhookDelivery]:
         with self._get_conn() as conn:
             if webhook_id:
                 rows = conn.execute(
@@ -260,8 +260,8 @@ class Storage:
 
     def query_events(
         self,
-        event_type: Optional[str] = None,
-        service: Optional[str] = None,
+        event_type: str | None = None,
+        service: str | None = None,
         limit: int = 100,
     ) -> list[AnalyticsEvent]:
         with self._get_conn() as conn:
@@ -304,7 +304,7 @@ class Storage:
             )
         return flag
 
-    def get_feature_flag(self, name: str) -> Optional[FeatureFlag]:
+    def get_feature_flag(self, name: str) -> FeatureFlag | None:
         with self._get_conn() as conn:
             row = conn.execute("SELECT * FROM feature_flags WHERE name = ?", (name,)).fetchone()
             if row is None:
@@ -316,7 +316,7 @@ class Storage:
             rows = conn.execute("SELECT * FROM feature_flags ORDER BY name").fetchall()
             return [self._row_to_flag(r) for r in rows]
 
-    def update_feature_flag(self, name: str, **kwargs: Any) -> Optional[FeatureFlag]:
+    def update_feature_flag(self, name: str, **kwargs: Any) -> FeatureFlag | None:
         if not kwargs:
             return self.get_feature_flag(name)
         sets = []
@@ -364,7 +364,7 @@ class Storage:
             )
         return entry
 
-    def get_cache(self, key: str) -> Optional[CacheEntry]:
+    def get_cache(self, key: str) -> CacheEntry | None:
         with self._get_conn() as conn:
             row = conn.execute("SELECT * FROM cache_entries WHERE key = ?", (key,)).fetchone()
             if row is None:
@@ -398,7 +398,7 @@ class Storage:
             )
         return role
 
-    def get_role(self, role_id: str) -> Optional[Role]:
+    def get_role(self, role_id: str) -> Role | None:
         with self._get_conn() as conn:
             row = conn.execute("SELECT * FROM roles WHERE id = ?", (role_id,)).fetchone()
             if row is None:

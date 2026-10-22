@@ -6,10 +6,9 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
-from gobber.kg_models import Note, NoteLink, SearchResult
+from gobber.kg_models import Note, SearchResult
 
 
 class KnowledgeGraphStorage:
@@ -86,7 +85,7 @@ class KnowledgeGraphStorage:
             )
         return note
 
-    def get_note(self, note_id: str) -> Optional[Note]:
+    def get_note(self, note_id: str) -> Note | None:
         """Get a note by ID."""
         with self._get_conn() as conn:
             row = conn.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
@@ -94,7 +93,7 @@ class KnowledgeGraphStorage:
                 return None
             return self._row_to_note(row)
 
-    def get_note_by_path(self, file_path: str) -> Optional[Note]:
+    def get_note_by_path(self, file_path: str) -> Note | None:
         """Get a note by file path."""
         with self._get_conn() as conn:
             row = conn.execute("SELECT * FROM notes WHERE file_path = ?", (file_path,)).fetchone()
@@ -180,7 +179,7 @@ class KnowledgeGraphStorage:
                 (note_id, json.dumps(embedding), len(embedding), datetime.utcnow().isoformat()),
             )
 
-    def get_embedding(self, note_id: str) -> Optional[list[float]]:
+    def get_embedding(self, note_id: str) -> list[float] | None:
         """Get the embedding vector for a note."""
         with self._get_conn() as conn:
             row = conn.execute("SELECT embedding FROM note_embeddings WHERE note_id = ?", (note_id,)).fetchone()
@@ -276,7 +275,7 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
     return dot_product / (norm_a * norm_b)
 
 
-def extract_relevant_context(content: str, query_embedding: list[float], note_embedding: list[float], max_length: int = 200) -> Optional[str]:
+def extract_relevant_context(content: str, query_embedding: list[float], note_embedding: list[float], max_length: int = 200) -> str | None:
     """Extract a relevant excerpt from the note content."""
     if not content.strip():
         return None

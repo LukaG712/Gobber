@@ -1,12 +1,12 @@
 """Data models for Gobber storage service."""
 
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
 
-class WebhookStatus(str, Enum):
+class WebhookStatus(StrEnum):
     PENDING = "pending"
     DELIVERED = "delivered"
     FAILED = "failed"
@@ -18,10 +18,10 @@ class Webhook:
         name: str,
         url: str,
         events: list[str],
-        secret: Optional[str] = None,
+        secret: str | None = None,
         is_active: bool = True,
-        id: Optional[UUID] = None,
-        created_at: Optional[datetime] = None,
+        id: UUID | None = None,
+        created_at: datetime | None = None,
     ):
         self.id = id or uuid4()
         self.name = name
@@ -31,7 +31,7 @@ class Webhook:
         self.is_active = is_active
         self.created_at = created_at or datetime.utcnow()
         self.delivery_count = 0
-        self.last_delivery_at: Optional[datetime] = None
+        self.last_delivery_at: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -53,8 +53,8 @@ class WebhookDelivery:
         event: str,
         payload: dict[str, Any],
         status: WebhookStatus = WebhookStatus.PENDING,
-        id: Optional[UUID] = None,
-        created_at: Optional[datetime] = None,
+        id: UUID | None = None,
+        created_at: datetime | None = None,
     ):
         self.id = id or uuid4()
         self.webhook_id = webhook_id
@@ -62,8 +62,8 @@ class WebhookDelivery:
         self.payload = payload
         self.status = status
         self.created_at = created_at or datetime.utcnow()
-        self.response_status: Optional[int] = None
-        self.error_message: Optional[str] = None
+        self.response_status: int | None = None
+        self.error_message: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -82,9 +82,9 @@ class AnalyticsEvent:
         self,
         event_type: str,
         properties: dict[str, Any],
-        service: Optional[str] = None,
-        id: Optional[UUID] = None,
-        created_at: Optional[datetime] = None,
+        service: str | None = None,
+        id: UUID | None = None,
+        created_at: datetime | None = None,
     ):
         self.id = id or uuid4()
         self.event_type = event_type
@@ -107,10 +107,10 @@ class FeatureFlag:
         self,
         name: str,
         is_enabled: bool = False,
-        description: Optional[str] = None,
-        targeting: Optional[dict[str, Any]] = None,
-        id: Optional[UUID] = None,
-        created_at: Optional[datetime] = None,
+        description: str | None = None,
+        targeting: dict[str, Any] | None = None,
+        id: UUID | None = None,
+        created_at: datetime | None = None,
     ):
         self.id = id or uuid4()
         self.name = name
@@ -135,8 +135,8 @@ class CacheEntry:
         self,
         key: str,
         value: Any,
-        ttl_seconds: Optional[int] = None,
-        created_at: Optional[datetime] = None,
+        ttl_seconds: int | None = None,
+        created_at: datetime | None = None,
     ):
         self.key = key
         self.value = value
@@ -167,8 +167,8 @@ class Role:
         self,
         name: str,
         permissions: list[str],
-        description: Optional[str] = None,
-        id: Optional[UUID] = None,
+        description: str | None = None,
+        id: UUID | None = None,
     ):
         self.id = id or uuid4()
         self.name = name
@@ -189,7 +189,7 @@ class UserRole:
         self,
         user_id: str,
         role_id: UUID,
-        id: Optional[UUID] = None,
+        id: UUID | None = None,
     ):
         self.id = id or uuid4()
         self.user_id = user_id

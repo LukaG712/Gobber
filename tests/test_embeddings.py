@@ -1,11 +1,11 @@
 """Tests for Gobber vector embeddings API."""
 
-import json
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from httpx import ASGITransport, AsyncClient
 
 from gobber.api import app
-from httpx import AsyncClient, ASGITransport
 
 
 @pytest.fixture
@@ -80,7 +80,6 @@ class TestEmbeddingSearch:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 with patch("gobber.api.kg.search", new_callable=AsyncMock) as mock_search:
-                    from gobber.kg_models import SearchResult
                     mock_search.return_value = []
                     response = await client.post(
                         "/api/embeddings/search",

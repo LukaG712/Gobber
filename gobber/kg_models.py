@@ -1,7 +1,7 @@
 """Data models for the Knowledge Graph module in Gobber."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -13,10 +13,10 @@ class Note:
         file_path: str,
         title: str,
         content: str,
-        links: Optional[list[str]] = None,
-        id: Optional[UUID] = None,
-        created_at: Optional[datetime] = None,
-        updated_at: Optional[datetime] = None,
+        links: list[str] | None = None,
+        id: UUID | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
     ):
         self.id = id or uuid4()
         self.file_path = file_path
@@ -63,7 +63,7 @@ class SearchResult:
         self,
         note: Note,
         score: float,
-        context: Optional[str] = None,
+        context: str | None = None,
     ):
         self.note = note
         self.score = score

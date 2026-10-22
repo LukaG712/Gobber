@@ -1,24 +1,22 @@
 """FastAPI application for Gobber storage service."""
 
-import os
 import hmac
-from typing import Any, Optional
+import os
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Header
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Header, HTTPException
 
+from gobber.knowledge_graph import KnowledgeGraph
 from gobber.models import (
-    Webhook,
-    WebhookDelivery,
     AnalyticsEvent,
-    FeatureFlag,
     CacheEntry,
+    FeatureFlag,
     Role,
     UserRole,
+    Webhook,
+    WebhookDelivery,
 )
 from gobber.storage import Storage
-from gobber.knowledge_graph import KnowledgeGraph
-
 
 # ─── App ────────────────────────────────────────────────────────
 
@@ -33,7 +31,7 @@ API_KEY = os.getenv("API_KEY", "Gobber-dev-key-change-me")
 kg = KnowledgeGraph()
 
 
-def verify_bearer(authorization: Optional[str] = Header(None)) -> None:
+def verify_bearer(authorization: str | None = Header(None)) -> None:
     """Verify Bearer token in Authorization header."""
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]
@@ -53,7 +51,7 @@ async def health() -> dict[str, str]:
 # ─── Webhooks ───────────────────────────────────────────────────
 
 @app.post("/api/webhooks")
-async def create_webhook(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def create_webhook(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     webhook = Webhook(
         name=data["name"],
@@ -67,14 +65,14 @@ async def create_webhook(data: dict[str, Any], authorization: Optional[str] = He
 
 
 @app.get("/api/webhooks")
-async def list_webhooks(active_only: bool = False, authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+async def list_webhooks(active_only: bool = False, authorization: str | None = Header(None)) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     webhooks = storage.list_webhooks(active_only=active_only)
     return [w.to_dict() for w in webhooks]
 
 
 @app.get("/api/webhooks/{webhook_id}")
-async def get_webhook(webhook_id: str, authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def get_webhook(webhook_id: str, authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     webhook = storage.get_webhook(webhook_id)
     if webhook is None:
@@ -86,7 +84,7 @@ async def get_webhook(webhook_id: str, authorization: Optional[str] = Header(Non
 async def update_webhook(
     webhook_id: str,
     data: dict[str, Any],
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     verify_bearer(authorization)
     webhook = storage.update_webhook(webhook_id, **data)
@@ -96,7 +94,7 @@ async def update_webhook(
 
 
 @app.delete("/api/webhooks/{webhook_id}")
-async def delete_webhook(webhook_id: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+async def delete_webhook(webhook_id: str, authorization: str | None = Header(None)) -> dict[str, bool]:
     verify_bearer(authorization)
     deleted = storage.delete_webhook(webhook_id)
     if not deleted:
@@ -110,7 +108,7 @@ async def delete_webhook(webhook_id: str, authorization: Optional[str] = Header(
 async def create_delivery(
     webhook_id: str,
     data: dict[str, Any],
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     verify_bearer(authorization)
     delivery = WebhookDelivery(
@@ -126,7 +124,7 @@ async def create_delivery(
 async def list_deliveries(
     webhook_id: str,
     limit: int = 50,
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     deliveries = storage.list_deliveries(webhook_id=webhook_id, limit=limit)
@@ -136,7 +134,7 @@ async def list_deliveries(
 # ─── Analytics ──────────────────────────────────────────────────
 
 @app.post("/api/analytics/events")
-async def record_event(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def record_event(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     event = AnalyticsEvent(
         event_type=data["event_type"],
@@ -149,10 +147,10 @@ async def record_event(data: dict[str, Any], authorization: Optional[str] = Head
 
 @app.get("/api/analytics/events")
 async def query_events(
-    event_type: Optional[str] = None,
-    service: Optional[str] = None,
+    event_type: str | None = None,
+    service: str | None = None,
     limit: int = 100,
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     events = storage.query_events(event_type=event_type, service=service, limit=limit)
@@ -162,7 +160,7 @@ async def query_events(
 # ─── Feature Flags ──────────────────────────────────────────────
 
 @app.post("/api/flags")
-async def create_flag(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def create_flag(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     flag = FeatureFlag(
         name=data["name"],
@@ -175,14 +173,14 @@ async def create_flag(data: dict[str, Any], authorization: Optional[str] = Heade
 
 
 @app.get("/api/flags")
-async def list_flags(authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+async def list_flags(authorization: str | None = Header(None)) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     flags = storage.list_feature_flags()
     return [f.to_dict() for f in flags]
 
 
 @app.get("/api/flags/{name}")
-async def get_flag(name: str, authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def get_flag(name: str, authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     flag = storage.get_feature_flag(name)
     if flag is None:
@@ -194,7 +192,7 @@ async def get_flag(name: str, authorization: Optional[str] = Header(None)) -> di
 async def update_flag(
     name: str,
     data: dict[str, Any],
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     verify_bearer(authorization)
     flag = storage.update_feature_flag(name, **data)
@@ -204,7 +202,7 @@ async def update_flag(
 
 
 @app.delete("/api/flags/{name}")
-async def delete_flag(name: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+async def delete_flag(name: str, authorization: str | None = Header(None)) -> dict[str, bool]:
     verify_bearer(authorization)
     deleted = storage.delete_feature_flag(name)
     if not deleted:
@@ -215,7 +213,7 @@ async def delete_flag(name: str, authorization: Optional[str] = Header(None)) ->
 # ─── Cache ──────────────────────────────────────────────────────
 
 @app.post("/api/cache")
-async def set_cache(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def set_cache(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     entry = CacheEntry(
         key=data["key"],
@@ -227,7 +225,7 @@ async def set_cache(data: dict[str, Any], authorization: Optional[str] = Header(
 
 
 @app.get("/api/cache/{key}")
-async def get_cache(key: str, authorization: Optional[str] = Header(None)) -> Optional[dict[str, Any]]:
+async def get_cache(key: str, authorization: str | None = Header(None)) -> dict[str, Any] | None:
     verify_bearer(authorization)
     entry = storage.get_cache(key)
     if entry is None:
@@ -236,7 +234,7 @@ async def get_cache(key: str, authorization: Optional[str] = Header(None)) -> Op
 
 
 @app.delete("/api/cache/{key}")
-async def delete_cache(key: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+async def delete_cache(key: str, authorization: str | None = Header(None)) -> dict[str, bool]:
     verify_bearer(authorization)
     deleted = storage.delete_cache(key)
     return {"deleted": deleted}
@@ -245,7 +243,7 @@ async def delete_cache(key: str, authorization: Optional[str] = Header(None)) ->
 # ─── RBAC ───────────────────────────────────────────────────────
 
 @app.post("/api/roles")
-async def create_role(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def create_role(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     role = Role(
         name=data["name"],
@@ -257,14 +255,14 @@ async def create_role(data: dict[str, Any], authorization: Optional[str] = Heade
 
 
 @app.get("/api/roles")
-async def list_roles(authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+async def list_roles(authorization: str | None = Header(None)) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     roles = storage.list_roles()
     return [r.to_dict() for r in roles]
 
 
 @app.get("/api/roles/{role_id}")
-async def get_role(role_id: str, authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def get_role(role_id: str, authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     role = storage.get_role(role_id)
     if role is None:
@@ -273,7 +271,7 @@ async def get_role(role_id: str, authorization: Optional[str] = Header(None)) ->
 
 
 @app.delete("/api/roles/{role_id}")
-async def delete_role(role_id: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+async def delete_role(role_id: str, authorization: str | None = Header(None)) -> dict[str, bool]:
     verify_bearer(authorization)
     deleted = storage.delete_role(role_id)
     if not deleted:
@@ -285,7 +283,7 @@ async def delete_role(role_id: str, authorization: Optional[str] = Header(None))
 async def assign_role(
     user_id: str,
     data: dict[str, Any],
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     verify_bearer(authorization)
     from uuid import UUID
@@ -295,7 +293,7 @@ async def assign_role(
 
 
 @app.get("/api/users/{user_id}/roles")
-async def get_user_roles(user_id: str, authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+async def get_user_roles(user_id: str, authorization: str | None = Header(None)) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     roles = storage.get_user_roles(user_id)
     return [r.to_dict() for r in roles]
@@ -305,7 +303,7 @@ async def get_user_roles(user_id: str, authorization: Optional[str] = Header(Non
 async def revoke_role(
     user_id: str,
     role_id: str,
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> dict[str, bool]:
     verify_bearer(authorization)
     revoked = storage.revoke_role(user_id, role_id)
@@ -316,8 +314,8 @@ async def revoke_role(
 
 @app.post("/api/vault/index")
 async def index_vault(
-    data: Optional[dict[str, Any]] = None,
-    authorization: Optional[str] = Header(None),
+    data: dict[str, Any] | None = None,
+    authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     verify_bearer(authorization)
     reindex = (data or {}).get("reindex", False)
@@ -329,7 +327,7 @@ async def index_vault(
 async def list_vault_notes(
     limit: int = 100,
     offset: int = 0,
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     notes = kg.list_notes(limit=limit, offset=offset)
@@ -337,7 +335,7 @@ async def list_vault_notes(
 
 
 @app.get("/api/vault/notes/{note_id}")
-async def get_vault_note(note_id: str, authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def get_vault_note(note_id: str, authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     note = kg.get_note(note_id)
     if note is None:
@@ -348,7 +346,7 @@ async def get_vault_note(note_id: str, authorization: Optional[str] = Header(Non
 @app.post("/api/vault/search")
 async def search_vault(
     data: dict[str, Any],
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     query = data.get("query", "")
@@ -360,20 +358,20 @@ async def search_vault(
 
 
 @app.get("/api/vault/notes/{note_id}/links")
-async def get_note_links(note_id: str, authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+async def get_note_links(note_id: str, authorization: str | None = Header(None)) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     note = kg.get_note(note_id)
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
     links = kg.get_note_links(note_id)
-    return [l.to_dict() for l in links]
+    return [link.to_dict() for link in links]
 
 
 @app.get("/api/vault/notes/{note_id}/related")
 async def get_related_notes(
     note_id: str,
     limit: int = 5,
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> list[dict[str, Any]]:
     verify_bearer(authorization)
     note = kg.get_note(note_id)
@@ -384,7 +382,7 @@ async def get_related_notes(
 
 
 @app.delete("/api/vault/notes/{note_id}")
-async def delete_vault_note(note_id: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+async def delete_vault_note(note_id: str, authorization: str | None = Header(None)) -> dict[str, bool]:
     verify_bearer(authorization)
     deleted = kg.delete_note(note_id)
     if not deleted:
@@ -393,7 +391,7 @@ async def delete_vault_note(note_id: str, authorization: Optional[str] = Header(
 
 
 @app.get("/api/vault/stats")
-async def get_vault_stats(authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def get_vault_stats(authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
     return kg.get_stats()
 
@@ -403,7 +401,7 @@ async def get_vault_stats(authorization: Optional[str] = Header(None)) -> dict[s
 @app.post("/api/embeddings/generate")
 async def generate_embedding(
     data: dict[str, Any],
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     """Generate an embedding vector for the given text.
 
@@ -439,7 +437,7 @@ async def generate_embedding(
 @app.post("/api/embeddings/search")
 async def search_embeddings(
     data: dict[str, Any],
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> list[dict[str, Any]]:
     """Semantic search using vector embeddings.
 
@@ -463,7 +461,7 @@ async def search_embeddings(
 
 
 @app.get("/api/embeddings/stats")
-async def get_embedding_stats(authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+async def get_embedding_stats(authorization: str | None = Header(None)) -> dict[str, Any]:
     """Get embedding statistics.
 
     Returns:
@@ -482,7 +480,7 @@ async def get_embedding_stats(authorization: Optional[str] = Header(None)) -> di
 @app.post("/api/embeddings/batch")
 async def generate_batch_embeddings(
     data: dict[str, Any],
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ) -> list[dict[str, Any]]:
     """Generate embeddings for multiple texts in batch.
 

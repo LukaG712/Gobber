@@ -8,10 +8,9 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from gobber.api import app
-from gobber.knowledge_graph import KnowledgeGraph
 from gobber.kg_models import Note
 from gobber.kg_storage import KnowledgeGraphStorage, cosine_similarity
+from gobber.knowledge_graph import KnowledgeGraph
 
 
 @pytest.fixture
@@ -23,7 +22,9 @@ def tmp_db():
     db_path = db_file.name
     yield db_path
     # Force close any WAL files on Windows
-    import sqlite3, glob as glob_mod, time
+    import glob as glob_mod
+    import sqlite3
+    import time
     try:
         conn = sqlite3.connect(db_path)
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -101,23 +102,24 @@ def kg(tmp_db, tmp_vault):
 def client(tmp_db, tmp_vault):
     """Create a test client with a temp database."""
     import importlib
+
     import gobber.api as api_module
-    
+
     # Reset module-level singletons to use temp DB
     old_db = os.environ.get("DB_PATH")
     old_key = os.environ.get("API_KEY")
     old_vault = os.environ.get("OBSIDIAN_VAULT_PATH")
-    
+
     os.environ["DB_PATH"] = tmp_db
     os.environ["API_KEY"] = "test-key"
     os.environ["OBSIDIAN_VAULT_PATH"] = str(tmp_vault)
-    
+
     # Reload the module to pick up new env vars
     importlib.reload(api_module)
-    
+
     with TestClient(api_module.app) as c:
         yield c
-    
+
     os.environ["DB_PATH"] = old_db or ""
     os.environ["API_KEY"] = old_key or ""
     if old_vault:
