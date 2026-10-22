@@ -48,6 +48,58 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "service": "Gobber"}
 
 
+@app.get("/api/capabilities")
+async def capabilities() -> dict[str, Any]:
+    """Report the capabilities supported by this Gobber instance."""
+    return {
+        "service": "Gobber",
+        "version": "1.0.0",
+        "features": {
+            "cache": {
+                "supported": True,
+                "description": "Key-value cache with TTL",
+            },
+            "feature_flags": {
+                "supported": True,
+                "description": "Feature flag management",
+            },
+            "knowledge_graph": {
+                "supported": True,
+                "description": "Semantic search and knowledge graph",
+            },
+            "semantic_search": {
+                "supported": True,
+                "description": "Embedding-based semantic search with cosine similarity",
+            },
+            "vault_scanning": {
+                "supported": True,
+                "description": "Obsidian vault scanning and indexing",
+            },
+            "rbac": {
+                "supported": True,
+                "description": "Role-based access control",
+            },
+            "webhooks": {
+                "supported": True,
+                "description": "Webhook management and delivery tracking",
+            },
+            "analytics": {
+                "supported": True,
+                "description": "Analytics event storage",
+            },
+            "persistent_storage": {
+                "supported": True,
+                "description": "SQLite persistent storage",
+            },
+            "backup": {
+                "supported": True,
+                "description": "Database backup",
+            },
+        },
+        "api_versions": ["v1"],
+    }
+
+
 # ─── Webhooks ───────────────────────────────────────────────────
 
 @app.post("/api/webhooks")

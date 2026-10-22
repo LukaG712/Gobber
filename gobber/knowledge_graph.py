@@ -1,10 +1,12 @@
 """Core knowledge graph logic: vault scanning, embedding generation, and index management."""
 
+import asyncio
 import logging
 import os
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from uuid import UUID
 
 import httpx
@@ -135,6 +137,60 @@ class KnowledgeGraph:
             logger.warning(f"Failed to generate embedding via Shrewd: {e}")
             return None
 
+    async def generate_embeddings_batch(self, texts: list[str], batch_size: int = 10) -> list[list[float] | None]:
+        """Generate embeddings for multiple texts in a single batch request.
+        
+        Falls back to individual requests if batch endpoint is not supported.
+        Returns a list of embeddings (None for failed texts).
+        """
+        if not texts:
+            return []
+
+        results: list[list[float] | None] = []
+        
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                headers = {}
+                if self.shrewd_api_key:
+                    headers["X-API-Key"] = self.shrewd_api_key
+
+                # Try batch endpoint first
+                truncated = [t[:8000] for t in texts]
+                response = await client.post(
+                    f"{self.shrewd_url}/api/embed/batch",
+                    json={
+                        "texts": truncated,
+                        "model": self.embedding_model,
+                    },
+                    headers=headers,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    embeddings = data.get("embeddings", data.get("vectors", []))
+                    # Ensure we have the right number of results
+                    while len(embeddings) < len(texts):
+                        embeddings.append(None)
+                    return embeddings[:len(texts)]
+                else:
+                    logger.warning(f"Shrewd batch embedding failed: {response.status_code}, falling back to individual")
+        except Exception as e:
+            logger.warning(f"Batch embedding failed, falling back to individual: {e}")
+
+        # Fallback: process in batches with individual requests
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            tasks = [self.generate_embedding(text) for text in batch]
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in batch_results:
+                if isinstance(result, Exception):
+                    logger.warning(f"Embedding failed: {result}")
+                    results.append(None)
+                else:
+                    results.append(result)
+
+        return results
+
     def _generate_fallback_embedding(self, text: str, dimensions: int = 384) -> list[float]:
         """Generate a simple hash-based fallback embedding when Shrewd is unavailable."""
         import hashlib
@@ -174,7 +230,7 @@ class KnowledgeGraph:
             stem = note.file_path.replace(".md", "").lower()
             self._note_title_map[stem] = note.id
 
-        # Store each note
+        # Store each note and resolve links
         for note in notes:
             try:
                 self.storage.upsert_note(note)
@@ -186,19 +242,36 @@ class KnowledgeGraph:
                     self.storage.upsert_links(note.id, resolved_links)
                     stats["links_resolved"] += len(resolved_links)
 
-                # Generate embedding
-                embedding = await self.generate_embedding(note.content)
-                if embedding is None:
-                    # Fallback embedding
-                    embedding = self._generate_fallback_embedding(note.content)
-                    logger.info(f"Using fallback embedding for {note.title}")
-
-                self.storage.store_embedding(str(note.id), embedding)
-                stats["embeddings_generated"] += 1
-
             except Exception as e:
                 logger.error(f"Failed to index note {note.title}: {e}")
                 stats["errors"] += 1
+
+        # Generate embeddings in batch for efficiency
+        if notes:
+            try:
+                texts = [note.content for note in notes]
+                embeddings = await self.generate_embeddings_batch(texts)
+
+                for note, embedding in zip(notes, embeddings):
+                    if embedding is None:
+                        # Fallback embedding
+                        embedding = self._generate_fallback_embedding(note.content)
+                        logger.info(f"Using fallback embedding for {note.title}")
+
+                    self.storage.store_embedding(str(note.id), embedding)
+                    stats["embeddings_generated"] += 1
+            except Exception as e:
+                logger.error(f"Batch embedding failed, falling back to individual: {e}")
+                # Fallback: generate embeddings one by one
+                for note in notes:
+                    try:
+                        embedding = await self.generate_embedding(note.content)
+                        if embedding is None:
+                            embedding = self._generate_fallback_embedding(note.content)
+                        self.storage.store_embedding(str(note.id), embedding)
+                        stats["embeddings_generated"] += 1
+                    except Exception as e:
+                        logger.error(f"Failed to generate embedding for {note.title}: {e}")
 
         return {"success": True, **stats}
 
@@ -215,13 +288,34 @@ class KnowledgeGraph:
 
         return resolved
 
-    async def search(self, query: str, limit: int = 10) -> list[SearchResult]:
-        """Semantic search: convert query to embedding, then find similar notes."""
+    async def search(
+        self,
+        query: str,
+        limit: int = 10,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> list[SearchResult]:
+        """Semantic search: convert query to embedding, then find similar notes.
+        
+        Args:
+            query: Search query text.
+            limit: Maximum number of results.
+            user_id: Optional user ID to scope results.
+            project_id: Optional project ID to scope results.
+            session_id: Optional session ID to scope results.
+        """
         query_embedding = await self.generate_embedding(query)
         if query_embedding is None:
             query_embedding = self._generate_fallback_embedding(query)
 
-        return self.storage.semantic_search(query_embedding, limit=limit)
+        return self.storage.semantic_search(
+            query_embedding,
+            limit=limit,
+            user_id=user_id,
+            project_id=project_id,
+            session_id=session_id,
+        )
 
     def get_note(self, note_id: str) -> Note | None:
         """Get a note by ID."""

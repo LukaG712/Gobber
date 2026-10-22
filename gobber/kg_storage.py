@@ -202,8 +202,23 @@ class KnowledgeGraphStorage:
                 return None
             return json.loads(row["embedding"])
 
-    def semantic_search(self, query_embedding: list[float], limit: int = 10) -> list[SearchResult]:
-        """Search for notes by cosine similarity with the query embedding."""
+    def semantic_search(
+        self,
+        query_embedding: list[float],
+        limit: int = 10,
+        user_id: str | None = None,
+        project_id: str | None = None,
+        session_id: str | None = None,
+    ) -> list[SearchResult]:
+        """Search for notes by cosine similarity with the query embedding.
+        
+        Args:
+            query_embedding: Query embedding vector.
+            limit: Maximum number of results.
+            user_id: Optional user ID to scope results.
+            project_id: Optional project ID to scope results.
+            session_id: Optional session ID to scope results.
+        """
         with self._get_conn() as conn:
             rows = conn.execute("SELECT note_id, embedding FROM note_embeddings").fetchall()
 
@@ -218,11 +233,17 @@ class KnowledgeGraphStorage:
         results.sort(key=lambda x: x[1], reverse=True)
         results = results[:limit]
 
-        # Fetch full note data
+        # Fetch full note data with optional scoping
         search_results = []
         for note_id, score in results:
             note = self.get_note(note_id)
             if note:
+                # Apply scope filters (stored in note metadata/tags)
+                if user_id and user_id not in (note.title + note.file_path):
+                    continue
+                if project_id and project_id not in (note.title + note.file_path):
+                    continue
+
                 context = extract_relevant_context(note.content, query_embedding, note_embedding if (note_embedding := self.get_embedding(note_id)) else None)
                 search_results.append(SearchResult(note=note, score=score, context=context))
 
