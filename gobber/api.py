@@ -1,9 +1,10 @@
 """FastAPI application for Gobber storage service."""
 
 import os
+import hmac
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import JSONResponse
 
 from gobber.models import (
@@ -16,6 +17,7 @@ from gobber.models import (
     UserRole,
 )
 from gobber.storage import Storage
+from gobber.knowledge_graph import KnowledgeGraph
 
 
 # ─── App ────────────────────────────────────────────────────────
@@ -28,10 +30,16 @@ app = FastAPI(
 
 storage = Storage(db_path=os.getenv("DB_PATH", "/app/data/gobber.db"))
 API_KEY = os.getenv("API_KEY", "Gobber-dev-key-change-me")
+kg = KnowledgeGraph()
 
 
-def verify_key(x_key: Optional[str] = Query(None)) -> None:
-    if x_key != API_KEY:
+def verify_bearer(authorization: Optional[str] = Header(None)) -> None:
+    """Verify Bearer token in Authorization header."""
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+    else:
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header. Use: Authorization: Bearer <key>")
+    if not hmac.compare_digest(token, API_KEY):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
@@ -45,8 +53,8 @@ async def health() -> dict[str, str]:
 # ─── Webhooks ───────────────────────────────────────────────────
 
 @app.post("/api/webhooks")
-async def create_webhook(data: dict[str, Any], x_key: Optional[str] = Query(None)) -> dict[str, Any]:
-    verify_key(x_key)
+async def create_webhook(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
     webhook = Webhook(
         name=data["name"],
         url=data["url"],
@@ -59,15 +67,15 @@ async def create_webhook(data: dict[str, Any], x_key: Optional[str] = Query(None
 
 
 @app.get("/api/webhooks")
-async def list_webhooks(active_only: bool = False, x_key: Optional[str] = Query(None)) -> list[dict[str, Any]]:
-    verify_key(x_key)
+async def list_webhooks(active_only: bool = False, authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+    verify_bearer(authorization)
     webhooks = storage.list_webhooks(active_only=active_only)
     return [w.to_dict() for w in webhooks]
 
 
 @app.get("/api/webhooks/{webhook_id}")
-async def get_webhook(webhook_id: str, x_key: Optional[str] = Query(None)) -> dict[str, Any]:
-    verify_key(x_key)
+async def get_webhook(webhook_id: str, authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
     webhook = storage.get_webhook(webhook_id)
     if webhook is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
@@ -78,9 +86,9 @@ async def get_webhook(webhook_id: str, x_key: Optional[str] = Query(None)) -> di
 async def update_webhook(
     webhook_id: str,
     data: dict[str, Any],
-    x_key: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
 ) -> dict[str, Any]:
-    verify_key(x_key)
+    verify_bearer(authorization)
     webhook = storage.update_webhook(webhook_id, **data)
     if webhook is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
@@ -88,8 +96,8 @@ async def update_webhook(
 
 
 @app.delete("/api/webhooks/{webhook_id}")
-async def delete_webhook(webhook_id: str, x_key: Optional[str] = Query(None)) -> dict[str, bool]:
-    verify_key(x_key)
+async def delete_webhook(webhook_id: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+    verify_bearer(authorization)
     deleted = storage.delete_webhook(webhook_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Webhook not found")
@@ -102,9 +110,9 @@ async def delete_webhook(webhook_id: str, x_key: Optional[str] = Query(None)) ->
 async def create_delivery(
     webhook_id: str,
     data: dict[str, Any],
-    x_key: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
 ) -> dict[str, Any]:
-    verify_key(x_key)
+    verify_bearer(authorization)
     delivery = WebhookDelivery(
         webhook_id=__import__("uuid").UUID(webhook_id),
         event=data["event"],
@@ -118,9 +126,9 @@ async def create_delivery(
 async def list_deliveries(
     webhook_id: str,
     limit: int = 50,
-    x_key: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
 ) -> list[dict[str, Any]]:
-    verify_key(x_key)
+    verify_bearer(authorization)
     deliveries = storage.list_deliveries(webhook_id=webhook_id, limit=limit)
     return [d.to_dict() for d in deliveries]
 
@@ -128,8 +136,8 @@ async def list_deliveries(
 # ─── Analytics ──────────────────────────────────────────────────
 
 @app.post("/api/analytics/events")
-async def record_event(data: dict[str, Any], x_key: Optional[str] = Query(None)) -> dict[str, Any]:
-    verify_key(x_key)
+async def record_event(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
     event = AnalyticsEvent(
         event_type=data["event_type"],
         properties=data.get("properties", {}),
@@ -144,9 +152,9 @@ async def query_events(
     event_type: Optional[str] = None,
     service: Optional[str] = None,
     limit: int = 100,
-    x_key: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
 ) -> list[dict[str, Any]]:
-    verify_key(x_key)
+    verify_bearer(authorization)
     events = storage.query_events(event_type=event_type, service=service, limit=limit)
     return [e.to_dict() for e in events]
 
@@ -154,8 +162,8 @@ async def query_events(
 # ─── Feature Flags ──────────────────────────────────────────────
 
 @app.post("/api/flags")
-async def create_flag(data: dict[str, Any], x_key: Optional[str] = Query(None)) -> dict[str, Any]:
-    verify_key(x_key)
+async def create_flag(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
     flag = FeatureFlag(
         name=data["name"],
         is_enabled=data.get("is_enabled", False),
@@ -167,15 +175,15 @@ async def create_flag(data: dict[str, Any], x_key: Optional[str] = Query(None)) 
 
 
 @app.get("/api/flags")
-async def list_flags(x_key: Optional[str] = Query(None)) -> list[dict[str, Any]]:
-    verify_key(x_key)
+async def list_flags(authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+    verify_bearer(authorization)
     flags = storage.list_feature_flags()
     return [f.to_dict() for f in flags]
 
 
 @app.get("/api/flags/{name}")
-async def get_flag(name: str, x_key: Optional[str] = Query(None)) -> dict[str, Any]:
-    verify_key(x_key)
+async def get_flag(name: str, authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
     flag = storage.get_feature_flag(name)
     if flag is None:
         raise HTTPException(status_code=404, detail="Flag not found")
@@ -186,9 +194,9 @@ async def get_flag(name: str, x_key: Optional[str] = Query(None)) -> dict[str, A
 async def update_flag(
     name: str,
     data: dict[str, Any],
-    x_key: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
 ) -> dict[str, Any]:
-    verify_key(x_key)
+    verify_bearer(authorization)
     flag = storage.update_feature_flag(name, **data)
     if flag is None:
         raise HTTPException(status_code=404, detail="Flag not found")
@@ -196,8 +204,8 @@ async def update_flag(
 
 
 @app.delete("/api/flags/{name}")
-async def delete_flag(name: str, x_key: Optional[str] = Query(None)) -> dict[str, bool]:
-    verify_key(x_key)
+async def delete_flag(name: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+    verify_bearer(authorization)
     deleted = storage.delete_feature_flag(name)
     if not deleted:
         raise HTTPException(status_code=404, detail="Flag not found")
@@ -207,8 +215,8 @@ async def delete_flag(name: str, x_key: Optional[str] = Query(None)) -> dict[str
 # ─── Cache ──────────────────────────────────────────────────────
 
 @app.post("/api/cache")
-async def set_cache(data: dict[str, Any], x_key: Optional[str] = Query(None)) -> dict[str, Any]:
-    verify_key(x_key)
+async def set_cache(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
     entry = CacheEntry(
         key=data["key"],
         value=data["value"],
@@ -219,8 +227,8 @@ async def set_cache(data: dict[str, Any], x_key: Optional[str] = Query(None)) ->
 
 
 @app.get("/api/cache/{key}")
-async def get_cache(key: str, x_key: Optional[str] = Query(None)) -> Optional[dict[str, Any]]:
-    verify_key(x_key)
+async def get_cache(key: str, authorization: Optional[str] = Header(None)) -> Optional[dict[str, Any]]:
+    verify_bearer(authorization)
     entry = storage.get_cache(key)
     if entry is None:
         return None
@@ -228,8 +236,8 @@ async def get_cache(key: str, x_key: Optional[str] = Query(None)) -> Optional[di
 
 
 @app.delete("/api/cache/{key}")
-async def delete_cache(key: str, x_key: Optional[str] = Query(None)) -> dict[str, bool]:
-    verify_key(x_key)
+async def delete_cache(key: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+    verify_bearer(authorization)
     deleted = storage.delete_cache(key)
     return {"deleted": deleted}
 
@@ -237,8 +245,8 @@ async def delete_cache(key: str, x_key: Optional[str] = Query(None)) -> dict[str
 # ─── RBAC ───────────────────────────────────────────────────────
 
 @app.post("/api/roles")
-async def create_role(data: dict[str, Any], x_key: Optional[str] = Query(None)) -> dict[str, Any]:
-    verify_key(x_key)
+async def create_role(data: dict[str, Any], authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
     role = Role(
         name=data["name"],
         permissions=data.get("permissions", []),
@@ -249,15 +257,15 @@ async def create_role(data: dict[str, Any], x_key: Optional[str] = Query(None)) 
 
 
 @app.get("/api/roles")
-async def list_roles(x_key: Optional[str] = Query(None)) -> list[dict[str, Any]]:
-    verify_key(x_key)
+async def list_roles(authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+    verify_bearer(authorization)
     roles = storage.list_roles()
     return [r.to_dict() for r in roles]
 
 
 @app.get("/api/roles/{role_id}")
-async def get_role(role_id: str, x_key: Optional[str] = Query(None)) -> dict[str, Any]:
-    verify_key(x_key)
+async def get_role(role_id: str, authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
     role = storage.get_role(role_id)
     if role is None:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -265,8 +273,8 @@ async def get_role(role_id: str, x_key: Optional[str] = Query(None)) -> dict[str
 
 
 @app.delete("/api/roles/{role_id}")
-async def delete_role(role_id: str, x_key: Optional[str] = Query(None)) -> dict[str, bool]:
-    verify_key(x_key)
+async def delete_role(role_id: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+    verify_bearer(authorization)
     deleted = storage.delete_role(role_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -277,9 +285,9 @@ async def delete_role(role_id: str, x_key: Optional[str] = Query(None)) -> dict[
 async def assign_role(
     user_id: str,
     data: dict[str, Any],
-    x_key: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
 ) -> dict[str, Any]:
-    verify_key(x_key)
+    verify_bearer(authorization)
     from uuid import UUID
     user_role = UserRole(user_id=user_id, role_id=UUID(data["role_id"]))
     result = storage.assign_role(user_role)
@@ -287,8 +295,8 @@ async def assign_role(
 
 
 @app.get("/api/users/{user_id}/roles")
-async def get_user_roles(user_id: str, x_key: Optional[str] = Query(None)) -> list[dict[str, Any]]:
-    verify_key(x_key)
+async def get_user_roles(user_id: str, authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+    verify_bearer(authorization)
     roles = storage.get_user_roles(user_id)
     return [r.to_dict() for r in roles]
 
@@ -297,8 +305,94 @@ async def get_user_roles(user_id: str, x_key: Optional[str] = Query(None)) -> li
 async def revoke_role(
     user_id: str,
     role_id: str,
-    x_key: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
 ) -> dict[str, bool]:
-    verify_key(x_key)
+    verify_bearer(authorization)
     revoked = storage.revoke_role(user_id, role_id)
     return {"revoked": revoked}
+
+
+# ─── Knowledge Graph ~ Vault ────────────────────────────────────
+
+@app.post("/api/vault/index")
+async def index_vault(
+    data: Optional[dict[str, Any]] = None,
+    authorization: Optional[str] = Header(None),
+) -> dict[str, Any]:
+    verify_bearer(authorization)
+    reindex = (data or {}).get("reindex", False)
+    result = await kg.index_vault(reindex=reindex)
+    return result
+
+
+@app.get("/api/vault/notes")
+async def list_vault_notes(
+    limit: int = 100,
+    offset: int = 0,
+    authorization: Optional[str] = Header(None),
+) -> list[dict[str, Any]]:
+    verify_bearer(authorization)
+    notes = kg.list_notes(limit=limit, offset=offset)
+    return [n.to_dict() for n in notes]
+
+
+@app.get("/api/vault/notes/{note_id}")
+async def get_vault_note(note_id: str, authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
+    note = kg.get_note(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return note.to_dict()
+
+
+@app.post("/api/vault/search")
+async def search_vault(
+    data: dict[str, Any],
+    authorization: Optional[str] = Header(None),
+) -> list[dict[str, Any]]:
+    verify_bearer(authorization)
+    query = data.get("query", "")
+    limit = data.get("limit", 10)
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required")
+    results = await kg.search(query, limit=limit)
+    return [r.to_dict() for r in results]
+
+
+@app.get("/api/vault/notes/{note_id}/links")
+async def get_note_links(note_id: str, authorization: Optional[str] = Header(None)) -> list[dict[str, Any]]:
+    verify_bearer(authorization)
+    note = kg.get_note(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    links = kg.get_note_links(note_id)
+    return [l.to_dict() for l in links]
+
+
+@app.get("/api/vault/notes/{note_id}/related")
+async def get_related_notes(
+    note_id: str,
+    limit: int = 5,
+    authorization: Optional[str] = Header(None),
+) -> list[dict[str, Any]]:
+    verify_bearer(authorization)
+    note = kg.get_note(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    results = await kg.get_related_notes(note_id, limit=limit)
+    return [r.to_dict() for r in results]
+
+
+@app.delete("/api/vault/notes/{note_id}")
+async def delete_vault_note(note_id: str, authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+    verify_bearer(authorization)
+    deleted = kg.delete_note(note_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"deleted": True}
+
+
+@app.get("/api/vault/stats")
+async def get_vault_stats(authorization: Optional[str] = Header(None)) -> dict[str, Any]:
+    verify_bearer(authorization)
+    return kg.get_stats()

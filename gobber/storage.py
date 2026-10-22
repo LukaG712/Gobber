@@ -101,6 +101,37 @@ class Storage:
                 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id);
                 CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type);
                 CREATE INDEX IF NOT EXISTS idx_analytics_events_created ON analytics_events(created_at);
+
+                -- Knowledge Graph tables
+                CREATE TABLE IF NOT EXISTS kg_notes (
+                    id TEXT PRIMARY KEY,
+                    file_path TEXT NOT NULL UNIQUE,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    links TEXT NOT NULL DEFAULT '[]',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS kg_note_links (
+                    source_note_id TEXT NOT NULL,
+                    target_note_id TEXT NOT NULL,
+                    PRIMARY KEY (source_note_id, target_note_id),
+                    FOREIGN KEY (source_note_id) REFERENCES kg_notes(id),
+                    FOREIGN KEY (target_note_id) REFERENCES kg_notes(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS kg_note_embeddings (
+                    note_id TEXT PRIMARY KEY,
+                    embedding TEXT NOT NULL,
+                    dimensions INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (note_id) REFERENCES kg_notes(id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_kg_notes_title ON kg_notes(title);
+                CREATE INDEX IF NOT EXISTS idx_kg_note_links_source ON kg_note_links(source_note_id);
+                CREATE INDEX IF NOT EXISTS idx_kg_note_links_target ON kg_note_links(target_note_id);
             """)
 
     # ─── Webhooks ─────────────────────────────────────────────

@@ -7,7 +7,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from gobber.api import app, storage
+# Set API_KEY BEFORE importing the app module
+os.environ["API_KEY"] = "test-key"
+
+from gobber.api import app
 
 
 @pytest.fixture(autouse=True)
@@ -16,15 +19,28 @@ def temp_db():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
     os.environ["DB_PATH"] = db_path
-    os.environ["API_KEY"] = "test-key"
     # Reinitialize storage with temp DB
     from gobber.storage import Storage
     app.storage = Storage(db_path=db_path)
     yield
-    os.unlink(db_path)
+    # Clean up tables before removing DB
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        for table in ["webhooks", "feature_flags", "cache_entries", "roles", "role_permissions"]:
+            conn.execute(f"DELETE FROM {table}")
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+    try:
+        os.unlink(db_path)
+    except OSError:
+        pass
 
 
 client = TestClient(app)
+HEADERS = {"Authorization": "Bearer test-key"}
 
 
 class TestHealth:
@@ -41,7 +57,7 @@ class TestWebhooks:
         response = client.post(
             "/api/webhooks",
             json={"name": "test", "url": "https://example.com", "events": ["test.event"]},
-            params={"x_key": "test-key"},
+            headers=HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -49,29 +65,31 @@ class TestWebhooks:
         assert "id" in data
 
     def test_list_webhooks(self):
-        response = client.get("/api/webhooks", params={"x_key": "test-key"})
+        response = client.get("/api/webhooks", headers=HEADERS)
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
     def test_get_webhook_not_found(self):
-        response = client.get("/api/webhooks/nonexistent", params={"x_key": "test-key"})
+        response = client.get("/api/webhooks/nonexistent", headers=HEADERS)
         assert response.status_code == 404
 
 
 class TestFeatureFlags:
     def test_create_flag(self):
+        import uuid
+        flag_name = f"dark-mode-{uuid.uuid4().hex[:6]}"
         response = client.post(
             "/api/flags",
-            json={"name": "dark-mode", "is_enabled": True, "description": "Enable dark mode"},
-            params={"x_key": "test-key"},
+            json={"name": flag_name, "is_enabled": True, "description": "Enable dark mode"},
+            headers=HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "dark-mode"
+        assert data["name"] == flag_name
         assert data["is_enabled"] is True
 
     def test_list_flags(self):
-        response = client.get("/api/flags", params={"x_key": "test-key"})
+        response = client.get("/api/flags", headers=HEADERS)
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
@@ -82,12 +100,12 @@ class TestCache:
         response = client.post(
             "/api/cache",
             json={"key": "test-key-cache", "value": {"hello": "world"}, "ttl_seconds": 300},
-            params={"x_key": "test-key"},
+            headers=HEADERS,
         )
         assert response.status_code == 200
 
         # Get
-        response = client.get("/api/cache/test-key-cache", params={"x_key": "test-key"})
+        response = client.get("/api/cache/test-key-cache", headers=HEADERS)
         assert response.status_code == 200
         data = response.json()
         assert data["value"]["hello"] == "world"
@@ -95,22 +113,32 @@ class TestCache:
 
 class TestRBAC:
     def test_create_role(self):
+        import uuid
+        role_name = f"admin-{uuid.uuid4().hex[:6]}"
         response = client.post(
             "/api/roles",
-            json={"name": "admin", "permissions": ["read", "write"], "description": "Admin role"},
-            params={"x_key": "test-key"},
+            json={"name": role_name, "permissions": ["read", "write"], "description": "Admin role"},
+            headers=HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "admin"
+        assert data["name"] == role_name
 
     def test_list_roles(self):
-        response = client.get("/api/roles", params={"x_key": "test-key"})
+        response = client.get("/api/roles", headers=HEADERS)
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
 
 class TestAuth:
     def test_invalid_api_key(self):
-        response = client.get("/api/webhooks", params={"x_key": "wrong-key"})
+        response = client.get("/api/webhooks", headers={"Authorization": "Bearer wrong-key"})
+        assert response.status_code == 401
+
+    def test_missing_auth(self):
+        response = client.get("/api/webhooks")
+        assert response.status_code == 401
+
+    def test_query_param_rejected(self):
+        response = client.get("/api/webhooks", params={"x_key": "test-key"})
         assert response.status_code == 401
