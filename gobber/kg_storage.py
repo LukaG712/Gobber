@@ -220,7 +220,7 @@ class KnowledgeGraphStorage:
             return []
 
         # Tokenize query into individual terms
-        terms = re.findall(r'\w[\w-]*', query.lower())
+        terms = re.findall(r"\w[\w-]*", query.lower())
         if not terms:
             return []
 
@@ -246,7 +246,7 @@ class KnowledgeGraphStorage:
                     score += content_count * 1.0
 
                 # Bonus for whole word matches
-                whole_word_pattern = rf'\b{re.escape(term)}\b'
+                whole_word_pattern = rf"\b{re.escape(term)}\b"
                 whole_word_count = len(re.findall(whole_word_pattern, content))
                 if whole_word_count > 0:
                     score += whole_word_count * 2.0
@@ -447,13 +447,15 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
     return dot_product / (norm_a * norm_b)
 
 
-def extract_relevant_context(content: str, query_embedding: list[float], note_embedding: list[float], max_length: int = 200) -> str | None:
+def extract_relevant_context(
+    content: str, query_embedding: list[float], note_embedding: list[float], max_length: int = 200
+) -> str | None:
     """Extract a relevant excerpt from the note content."""
     if not content.strip():
         return None
 
     # Split into sentences and find the most relevant one
-    sentences = re.split(r'(?<=[.!?])\s+', content)
+    sentences = re.split(r"(?<=[.!?])\s+", content)
     if not sentences:
         # Fallback to first chunk
         return content[:max_length] + "..." if len(content) > max_length else content

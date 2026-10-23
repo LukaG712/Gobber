@@ -248,6 +248,7 @@ class Storage:
 
     def _row_to_delivery(self, row: sqlite3.Row) -> WebhookDelivery:
         from gobber.models import WebhookStatus
+
         return WebhookDelivery(
             id=UUID(row["id"]),
             webhook_id=UUID(row["webhook_id"]),

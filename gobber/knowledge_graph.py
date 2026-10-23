@@ -16,10 +16,10 @@ from gobber.kg_storage import KnowledgeGraphStorage
 logger = logging.getLogger(__name__)
 
 # Regex to extract [[links]] from Obsidian markdown
-LINK_PATTERN = re.compile(r'\[\[([^\]]+)\]\]')
+LINK_PATTERN = re.compile(r"\[\[([^\]]+)\]\]")
 
 # Regex to extract YAML frontmatter
-FRONTMATTER_PATTERN = re.compile(r'^---\s*\n(.*?)\n---\s*\n', re.DOTALL)
+FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 class KnowledgeGraph:
@@ -80,7 +80,7 @@ class KnowledgeGraph:
         links = LINK_PATTERN.findall(content)
 
         # Remove frontmatter from content for cleaner storage
-        clean_content = FRONTMATTER_PATTERN.sub('', content).strip()
+        clean_content = FRONTMATTER_PATTERN.sub("", content).strip()
 
         # Check if note already exists
         existing = self.storage.get_note_by_path(relative_path)
@@ -170,7 +170,7 @@ class KnowledgeGraph:
                     # Ensure we have the right number of results
                     while len(embeddings) < len(texts):
                         embeddings.append(None)
-                    return embeddings[:len(texts)]
+                    return embeddings[: len(texts)]
                 else:
                     logger.warning(f"Shrewd batch embedding failed: {response.status_code}, falling back to individual")
         except Exception as e:
@@ -178,7 +178,7 @@ class KnowledgeGraph:
 
         # Fallback: process in batches with individual requests
         for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
+            batch = texts[i : i + batch_size]
             tasks = [self.generate_embedding(text) for text in batch]
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
             for result in batch_results:
@@ -200,7 +200,7 @@ class KnowledgeGraph:
         for word in words:
             hash_bytes = hashlib.md5(word.encode()).digest()
             for i in range(dimensions):
-                embedding[i] += (int(hash_bytes[i % len(hash_bytes)]) / 255.0 - 0.5)
+                embedding[i] += int(hash_bytes[i % len(hash_bytes)]) / 255.0 - 0.5
 
         # Normalize
         magnitude = sum(x * x for x in embedding) ** 0.5

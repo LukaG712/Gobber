@@ -143,9 +143,7 @@ class CacheEntry:
         self.ttl_seconds = ttl_seconds
         self.created_at = created_at or datetime.utcnow()
         self.expires_at = (
-            self.created_at + __import__("datetime").timedelta(seconds=ttl_seconds)
-            if ttl_seconds
-            else None
+            self.created_at + __import__("datetime").timedelta(seconds=ttl_seconds) if ttl_seconds else None
         )
 
     def is_expired(self) -> bool:

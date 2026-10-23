@@ -36,12 +36,15 @@ def verify_bearer(authorization: str | None = Header(None)) -> None:
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]
     else:
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header. Use: Authorization: Bearer <key>")
+        raise HTTPException(
+            status_code=401, detail="Missing or invalid Authorization header. Use: Authorization: Bearer <key>"
+        )
     if not hmac.compare_digest(token, API_KEY):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
 # ─── Health ─────────────────────────────────────────────────────
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:
@@ -102,6 +105,7 @@ async def capabilities() -> dict[str, Any]:
 
 # ─── Webhooks ───────────────────────────────────────────────────
 
+
 @app.post("/api/webhooks")
 async def create_webhook(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
@@ -156,6 +160,7 @@ async def delete_webhook(webhook_id: str, authorization: str | None = Header(Non
 
 # ─── Webhook Deliveries ─────────────────────────────────────────
 
+
 @app.post("/api/webhooks/{webhook_id}/deliveries")
 async def create_delivery(
     webhook_id: str,
@@ -185,6 +190,7 @@ async def list_deliveries(
 
 # ─── Analytics ──────────────────────────────────────────────────
 
+
 @app.post("/api/analytics/events")
 async def record_event(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
@@ -210,6 +216,7 @@ async def query_events(
 
 
 # ─── Feature Flags ──────────────────────────────────────────────
+
 
 @app.post("/api/flags")
 async def create_flag(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
@@ -264,6 +271,7 @@ async def delete_flag(name: str, authorization: str | None = Header(None)) -> di
 
 # ─── Cache ──────────────────────────────────────────────────────
 
+
 @app.post("/api/cache")
 async def set_cache(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
     verify_bearer(authorization)
@@ -293,6 +301,7 @@ async def delete_cache(key: str, authorization: str | None = Header(None)) -> di
 
 
 # ─── RBAC ───────────────────────────────────────────────────────
+
 
 @app.post("/api/roles")
 async def create_role(data: dict[str, Any], authorization: str | None = Header(None)) -> dict[str, Any]:
@@ -339,6 +348,7 @@ async def assign_role(
 ) -> dict[str, Any]:
     verify_bearer(authorization)
     from uuid import UUID
+
     user_role = UserRole(user_id=user_id, role_id=UUID(data["role_id"]))
     result = storage.assign_role(user_role)
     return result.to_dict()
@@ -363,6 +373,7 @@ async def revoke_role(
 
 
 # ─── Knowledge Graph ~ Vault ────────────────────────────────────
+
 
 @app.post("/api/vault/index")
 async def index_vault(
@@ -449,6 +460,7 @@ async def get_vault_stats(authorization: str | None = Header(None)) -> dict[str,
 
 
 # ─── Vector Embeddings ────────────────────────────────────────────
+
 
 @app.post("/api/embeddings/generate")
 async def generate_embedding(
@@ -553,10 +565,12 @@ async def generate_batch_embeddings(
         embedding = await kg.generate_embedding(text)
         if embedding is None:
             embedding = kg._generate_fallback_embedding(text)
-        results.append({
-            "text": text[:100],  # Truncate for response
-            "embedding": embedding,
-            "dimensions": len(embedding),
-        })
+        results.append(
+            {
+                "text": text[:100],  # Truncate for response
+                "embedding": embedding,
+                "dimensions": len(embedding),
+            }
+        )
 
     return results

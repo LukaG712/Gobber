@@ -20,11 +20,13 @@ def temp_db():
     os.environ["DB_PATH"] = db_path
     # Reinitialize storage with temp DB
     from gobber.storage import Storage
+
     app.storage = Storage(db_path=db_path)
     yield
     # Clean up tables before removing DB
     try:
         import sqlite3
+
         conn = sqlite3.connect(db_path)
         for table in ["webhooks", "feature_flags", "cache_entries", "roles", "role_permissions"]:
             conn.execute(f"DELETE FROM {table}")
@@ -76,6 +78,7 @@ class TestWebhooks:
 class TestFeatureFlags:
     def test_create_flag(self):
         import uuid
+
         flag_name = f"dark-mode-{uuid.uuid4().hex[:6]}"
         response = client.post(
             "/api/flags",
@@ -113,6 +116,7 @@ class TestCache:
 class TestRBAC:
     def test_create_role(self):
         import uuid
+
         role_name = f"admin-{uuid.uuid4().hex[:6]}"
         response = client.post(
             "/api/roles",

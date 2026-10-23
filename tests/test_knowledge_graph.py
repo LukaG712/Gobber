@@ -17,6 +17,7 @@ from gobber.knowledge_graph import KnowledgeGraph
 def tmp_db():
     """Create a temporary database for testing."""
     import tempfile
+
     db_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     db_file.close()
     db_path = db_file.name
@@ -25,6 +26,7 @@ def tmp_db():
     import glob as glob_mod
     import sqlite3
     import time
+
     try:
         conn = sqlite3.connect(db_path)
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -33,6 +35,7 @@ def tmp_db():
         for f in glob_mod.glob(db_path + "*"):
             try:
                 import os as os_mod
+
                 os_mod.unlink(f)
             except Exception:
                 pass
@@ -49,16 +52,16 @@ def tmp_vault():
         # Create test notes
         (vault / "Getting Started.md").write_text(
             "---\ntitle: Getting Started\n---\n\nWelcome to Obsidian! This is your first note.\n\nCheck out [[Advanced Tips]] for more.",
-            encoding="utf-8"
+            encoding="utf-8",
         )
         (vault / "Advanced Tips.md").write_text(
             "---\ntitle: Advanced Tips\n---\n\nHere are some advanced tips for using Obsidian.\n\nSee [[Getting Started]] for basics.\n",
-            encoding="utf-8"
+            encoding="utf-8",
         )
         (vault / "Projects").mkdir(parents=True, exist_ok=True)
         (vault / "Projects" / "My Project.md").write_text(
             "---\ntitle: My Project\n---\n\nThis is a project note with some details.\n\nRelated: [[Getting Started]], [[Advanced Tips]]\n",
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         yield vault_dir
@@ -71,6 +74,7 @@ def kg_storage(tmp_db):
     yield storage
     # Close any lingering connections on Windows
     import sqlite3
+
     try:
         conn = sqlite3.connect(tmp_db)
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -90,6 +94,7 @@ def kg(tmp_db, tmp_vault):
     yield kg_instance
     # Close any lingering connections on Windows
     import sqlite3
+
     try:
         conn = sqlite3.connect(tmp_db)
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -262,6 +267,7 @@ class TestKnowledgeGraph:
 
     def test_index_vault(self, kg):
         import asyncio
+
         result = asyncio.run(kg.index_vault())
         assert result["success"] is True
         assert result["notes_indexed"] == 3
@@ -270,11 +276,13 @@ class TestKnowledgeGraph:
     def test_index_vault_nonexistent(self, tmp_db):
         kg = KnowledgeGraph(vault_path="/nonexistent/path", db_path=tmp_db)
         import asyncio
+
         result = asyncio.run(kg.index_vault())
         assert result["success"] is False
 
     def test_search(self, kg):
         import asyncio
+
         asyncio.run(kg.index_vault())
         results = asyncio.run(kg.search("artificial intelligence"))
         # Should return results even with fallback embeddings
@@ -282,6 +290,7 @@ class TestKnowledgeGraph:
 
     def test_get_stats(self, kg):
         import asyncio
+
         asyncio.run(kg.index_vault())
         stats = kg.get_stats()
         assert stats["total_notes"] == 3
@@ -289,6 +298,7 @@ class TestKnowledgeGraph:
 
     def test_delete_note(self, kg):
         import asyncio
+
         asyncio.run(kg.index_vault())
         notes = kg.list_notes()
         note_id = str(notes[0].id)
