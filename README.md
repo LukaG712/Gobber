@@ -1,8 +1,5 @@
 # Gobber
 
-> *"You really got to be OCD like the worst guest at an Airbnb ~ get gold, get cash, get blings!"*
-> ~ **The Dark Moon Song**, on collecting everything
-
 **Gobber** is the persistent storage service for the Evershade ecosystem. It provides a centralized data layer for webhooks, analytics, RBAC, cache, and feature flags ~ solving the in-memory data loss problem when services restart.
 
 **Luigi's Mansion origin:** *Gobber* ~ blob-like ghosts from Luigi's Mansion: Dark Moon that absorb and store everything in their path.
