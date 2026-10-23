@@ -6,7 +6,6 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
 import httpx
@@ -139,7 +138,7 @@ class KnowledgeGraph:
 
     async def generate_embeddings_batch(self, texts: list[str], batch_size: int = 10) -> list[list[float] | None]:
         """Generate embeddings for multiple texts in a single batch request.
-        
+
         Falls back to individual requests if batch endpoint is not supported.
         Returns a list of embeddings (None for failed texts).
         """
@@ -147,7 +146,7 @@ class KnowledgeGraph:
             return []
 
         results: list[list[float] | None] = []
-        
+
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 headers = {}
@@ -292,9 +291,9 @@ class KnowledgeGraph:
         self,
         query: str,
         limit: int = 10,
-        user_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        session_id: Optional[str] = None,
+        user_id: str | None = None,
+        project_id: str | None = None,
+        session_id: str | None = None,
         use_hybrid: bool = True,
     ) -> list[SearchResult]:
         """Search notes using hybrid semantic + keyword matching.
