@@ -2,6 +2,7 @@
 
 import hmac
 import os
+import uuid
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
@@ -168,8 +169,12 @@ async def create_delivery(
     authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     verify_bearer(authorization)
+    try:
+        wid = uuid.UUID(webhook_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid webhook_id format")
     delivery = WebhookDelivery(
-        webhook_id=__import__("uuid").UUID(webhook_id),
+        webhook_id=wid,
         event=data["event"],
         payload=data.get("payload", {}),
     )
@@ -349,7 +354,12 @@ async def assign_role(
     verify_bearer(authorization)
     from uuid import UUID
 
-    user_role = UserRole(user_id=user_id, role_id=UUID(data["role_id"]))
+    try:
+        role_uuid = UUID(data["role_id"])
+    except (ValueError, KeyError) as e:
+        raise HTTPException(status_code=400, detail=f"Invalid role_id format: {e}")
+
+    user_role = UserRole(user_id=user_id, role_id=role_uuid)
     result = storage.assign_role(user_role)
     return result.to_dict()
 
