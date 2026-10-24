@@ -5,6 +5,8 @@ import os
 import uuid
 from typing import Any
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Header, HTTPException
 
 from gobber.knowledge_graph import KnowledgeGraph
@@ -19,17 +21,25 @@ from gobber.models import (
 )
 from gobber.storage import Storage
 
+storage = Storage(db_path=os.getenv("DB_PATH"))
+API_KEY = os.getenv("API_KEY", "Gobber-dev-key-change-me")
+kg = KnowledgeGraph()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await kg.close()
+
+
 # ─── App ────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="Gobber",
     description="Persistent storage service for the Evershade ecosystem",
     version="1.0.0",
+    lifespan=lifespan,
 )
-
-storage = Storage(db_path=os.getenv("DB_PATH"))
-API_KEY = os.getenv("API_KEY", "Gobber-dev-key-change-me")
-kg = KnowledgeGraph()
 
 
 def verify_bearer(authorization: str | None = Header(None)) -> None:

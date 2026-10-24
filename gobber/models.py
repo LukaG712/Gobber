@@ -1,6 +1,6 @@
 """Data models for Gobber storage service."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
@@ -143,7 +143,7 @@ class CacheEntry:
         self.ttl_seconds = ttl_seconds
         self.created_at = created_at or datetime.now(timezone.utc)
         self.expires_at = (
-            self.created_at + __import__("datetime").timedelta(seconds=ttl_seconds) if ttl_seconds else None
+            self.created_at + timedelta(seconds=ttl_seconds) if ttl_seconds else None
         )
 
     def is_expired(self) -> bool:

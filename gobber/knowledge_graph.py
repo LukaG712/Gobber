@@ -39,6 +39,19 @@ class KnowledgeGraph:
         self.embedding_model = embedding_model or os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
         self.storage = KnowledgeGraphStorage(db_path or os.getenv("DB_PATH"))
         self._note_title_map: dict[str, UUID] = {}  # Maps note titles to IDs for link resolution
+        self._http_client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        """Get or create a reusable httpx.AsyncClient for Shrewd API calls."""
+        if self._http_client is None:
+            self._http_client = httpx.AsyncClient(timeout=60.0)
+        return self._http_client
+
+    async def close(self) -> None:
+        """Close the reusable httpx client."""
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None
 
     def scan_vault(self) -> list[Note]:
         """Scan the Obsidian vault directory for .md files and parse them."""
@@ -112,26 +125,26 @@ class KnowledgeGraph:
             return None
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                headers = {}
-                if self.shrewd_api_key:
-                    headers["X-API-Key"] = self.shrewd_api_key
+            client = self._get_client()
+            headers = {}
+            if self.shrewd_api_key:
+                headers["X-API-Key"] = self.shrewd_api_key
 
-                response = await client.post(
-                    f"{self.shrewd_url}/api/embed",
-                    json={
-                        "text": text[:8000],  # Truncate to avoid token limits
-                        "model": self.embedding_model,
-                    },
-                    headers=headers,
-                )
+            response = await client.post(
+                f"{self.shrewd_url}/api/embed",
+                json={
+                    "text": text[:8000],  # Truncate to avoid token limits
+                    "model": self.embedding_model,
+                },
+                headers=headers,
+            )
 
-                if response.status_code == 200:
-                    data = response.json()
-                    return data.get("embedding", data.get("vector"))
-                else:
-                    logger.warning(f"Shrewd embedding failed: {response.status_code} {response.text}")
-                    return None
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("embedding", data.get("vector"))
+            else:
+                logger.warning(f"Shrewd embedding failed: {response.status_code} {response.text}")
+                return None
         except Exception as e:
             logger.warning(f"Failed to generate embedding via Shrewd: {e}")
             return None
@@ -148,31 +161,31 @@ class KnowledgeGraph:
         results: list[list[float] | None] = []
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                headers = {}
-                if self.shrewd_api_key:
-                    headers["X-API-Key"] = self.shrewd_api_key
+            client = self._get_client()
+            headers = {}
+            if self.shrewd_api_key:
+                headers["X-API-Key"] = self.shrewd_api_key
 
-                # Try batch endpoint first
-                truncated = [t[:8000] for t in texts]
-                response = await client.post(
-                    f"{self.shrewd_url}/api/embed/batch",
-                    json={
-                        "texts": truncated,
-                        "model": self.embedding_model,
-                    },
-                    headers=headers,
-                )
+            # Try batch endpoint first
+            truncated = [t[:8000] for t in texts]
+            response = await client.post(
+                f"{self.shrewd_url}/api/embed/batch",
+                json={
+                    "texts": truncated,
+                    "model": self.embedding_model,
+                },
+                headers=headers,
+            )
 
-                if response.status_code == 200:
-                    data = response.json()
-                    embeddings = data.get("embeddings", data.get("vectors", []))
-                    # Ensure we have the right number of results
-                    while len(embeddings) < len(texts):
-                        embeddings.append(None)
-                    return embeddings[: len(texts)]
-                else:
-                    logger.warning(f"Shrewd batch embedding failed: {response.status_code}, falling back to individual")
+            if response.status_code == 200:
+                data = response.json()
+                embeddings = data.get("embeddings", data.get("vectors", []))
+                # Ensure we have the right number of results
+                while len(embeddings) < len(texts):
+                    embeddings.append(None)
+                return embeddings[: len(texts)]
+            else:
+                logger.warning(f"Shrewd batch embedding failed: {response.status_code}, falling back to individual")
         except Exception as e:
             logger.warning(f"Batch embedding failed, falling back to individual: {e}")
 
