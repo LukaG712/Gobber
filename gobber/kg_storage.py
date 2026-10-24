@@ -6,7 +6,7 @@ import os
 import re
 import sqlite3
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -191,7 +191,7 @@ class KnowledgeGraphStorage:
                        embedding=excluded.embedding,
                        dimensions=excluded.dimensions,
                        created_at=excluded.created_at""",
-                (note_id, json.dumps(embedding), len(embedding), datetime.utcnow().isoformat()),
+                (note_id, json.dumps(embedding), len(embedding), datetime.now(timezone.utc).isoformat()),
             )
 
     def get_embedding(self, note_id: str) -> list[float] | None:

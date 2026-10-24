@@ -1,6 +1,6 @@
 """Data models for the Knowledge Graph module in Gobber."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -23,8 +23,8 @@ class Note:
         self.title = title
         self.content = content
         self.links = links or []
-        self.created_at = created_at or datetime.utcnow()
-        self.updated_at = updated_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
 
     def to_dict(self) -> dict[str, Any]:
         return {

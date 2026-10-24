@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -84,7 +84,7 @@ class KnowledgeGraph:
 
         # Check if note already exists
         existing = self.storage.get_note_by_path(relative_path)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if existing:
             return Note(
