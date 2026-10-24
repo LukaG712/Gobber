@@ -185,15 +185,21 @@ class Storage:
     def update_webhook(self, webhook_id: str, **kwargs: Any) -> Webhook | None:
         if not kwargs:
             return self.get_webhook(webhook_id)
+        # Whitelist allowed columns to prevent SQL injection
+        allowed_columns = {"name", "url", "events", "secret", "is_active"}
         sets = []
         values = []
         for key, value in kwargs.items():
+            if key not in allowed_columns:
+                continue
             if key in ("events",):
                 value = json.dumps(value)
             elif key in ("is_active",):
                 value = int(value)
             sets.append(f"{key} = ?")
             values.append(value)
+        if not sets:
+            return self.get_webhook(webhook_id)
         values.append(webhook_id)
         with self._get_conn() as conn:
             conn.execute(f"UPDATE webhooks SET {', '.join(sets)} WHERE id = ?", values)
@@ -335,15 +341,21 @@ class Storage:
     def update_feature_flag(self, name: str, **kwargs: Any) -> FeatureFlag | None:
         if not kwargs:
             return self.get_feature_flag(name)
+        # Whitelist allowed columns to prevent SQL injection
+        allowed_columns = {"is_enabled", "description", "targeting"}
         sets = []
         values = []
         for key, value in kwargs.items():
+            if key not in allowed_columns:
+                continue
             if key == "targeting":
                 value = json.dumps(value)
             elif key == "is_enabled":
                 value = int(value)
             sets.append(f"{key} = ?")
             values.append(value)
+        if not sets:
+            return self.get_feature_flag(name)
         values.append(name)
         with self._get_conn() as conn:
             conn.execute(f"UPDATE feature_flags SET {', '.join(sets)} WHERE name = ?", values)
