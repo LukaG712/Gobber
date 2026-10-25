@@ -94,6 +94,28 @@ Set via environment variables:
 | `SHREWD_API_KEY` | (optional) | Shrewd API key for authentication |
 | `EMBEDDING_MODEL` | `nomic-embed-text` | Model name for embedding generation |
 
+## ❓ FAQ
+
+### What is Gobber's role in Evershade?
+
+Gobber is the persistent storage service. It provides a centralized data layer for webhooks, analytics, RBAC, cache, feature flags, and knowledge graph (Obsidian vault) integration.
+
+### How do I connect my Obsidian vault?
+
+Set `OBSIDIAN_VAULT_PATH` to your vault directory, then call `POST /api/vault/index` to scan and embed all notes.
+
+### What does `/api/capabilities` return?
+
+It returns the service name, version, and features: storage, webhooks, analytics, rbac, feature_flags, cache, knowledge_graph, vector_embeddings, obsidian_indexing, prometheus_metrics, opentelemetry.
+
+### Does Gobber use Redis?
+
+Optionally. Redis is used for the distributed cache layer. If Redis is unavailable, Gobber falls back to in-memory cache.
+
+### How do I backup Gobber data?
+
+Copy the SQLite database at `DB_PATH` (default `/app/data/gobber.db`). With Docker: `docker cp gobber:/app/data/gobber.db ./gobber-backup.db`.
+
 ## License
 
 MIT

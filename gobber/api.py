@@ -119,8 +119,24 @@ if HAS_PROMETHEUS:
 
 @app.get("/api/capabilities")
 async def capabilities() -> dict[str, Any]:
-    """Return minimal service identification."""
-    return {"service": "Gobber"}
+    """Return service identification, version, and features."""
+    return {
+        "service": "Gobber",
+        "version": "1.1.0",
+        "features": [
+            "storage",
+            "webhooks",
+            "analytics",
+            "rbac",
+            "feature_flags",
+            "cache",
+            "knowledge_graph",
+            "vector_embeddings",
+            "obsidian_indexing",
+            "prometheus_metrics",
+            "opentelemetry",
+        ],
+    }
 
 
 # ─── Webhooks ───────────────────────────────────────────────────
