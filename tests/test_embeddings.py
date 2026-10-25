@@ -30,13 +30,9 @@ class TestEmbeddingGeneration:
         """Should generate an embedding for text."""
         with patch("gobber.api.API_KEY", "test-api-key"):
             transport = ASGITransport(app=app)
-            async with AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
                 # Mock the embedding generation
-                with patch(
-                    "gobber.api.kg.generate_embedding", new_callable=AsyncMock
-                ) as mock_gen:
+                with patch("gobber.api.kg.generate_embedding", new_callable=AsyncMock) as mock_gen:
                     mock_gen.return_value = [0.1, 0.2, 0.3]
                     with patch("gobber.api.kg.embedding_model", "test-model"):
                         response = await client.post(
@@ -56,9 +52,7 @@ class TestEmbeddingGeneration:
         """Should return 400 for empty text."""
         with patch("gobber.api.API_KEY", "test-api-key"):
             transport = ASGITransport(app=app)
-            async with AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/embeddings/generate",
                     json={"text": ""},
@@ -71,9 +65,7 @@ class TestEmbeddingGeneration:
         """Should return 400 for missing text."""
         with patch("gobber.api.API_KEY", "test-api-key"):
             transport = ASGITransport(app=app)
-            async with AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/embeddings/generate",
                     json={},
@@ -90,12 +82,8 @@ class TestEmbeddingSearch:
         """Should search embeddings with a query."""
         with patch("gobber.api.API_KEY", "test-api-key"):
             transport = ASGITransport(app=app)
-            async with AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
-                with patch(
-                    "gobber.api.kg.search", new_callable=AsyncMock
-                ) as mock_search:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                with patch("gobber.api.kg.search", new_callable=AsyncMock) as mock_search:
                     mock_search.return_value = []
                     response = await client.post(
                         "/api/embeddings/search",
@@ -111,9 +99,7 @@ class TestEmbeddingSearch:
         """Should return 400 for empty query."""
         with patch("gobber.api.API_KEY", "test-api-key"):
             transport = ASGITransport(app=app)
-            async with AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/embeddings/search",
                     json={"query": ""},
@@ -130,9 +116,7 @@ class TestEmbeddingStats:
         """Should return embedding statistics."""
         with patch("gobber.api.API_KEY", "test-api-key"):
             transport = ASGITransport(app=app)
-            async with AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
                 with patch(
                     "gobber.api.kg.get_stats",
                     return_value={"total_notes": 10, "total_embeddings": 5},
@@ -158,12 +142,8 @@ class TestBatchEmbeddings:
         """Should generate embeddings for multiple texts."""
         with patch("gobber.api.API_KEY", "test-api-key"):
             transport = ASGITransport(app=app)
-            async with AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
-                with patch(
-                    "gobber.api.kg.generate_embedding", new_callable=AsyncMock
-                ) as mock_gen:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                with patch("gobber.api.kg.generate_embedding", new_callable=AsyncMock) as mock_gen:
                     mock_gen.return_value = [0.1, 0.2, 0.3]
                     response = await client.post(
                         "/api/embeddings/batch",
@@ -180,9 +160,7 @@ class TestBatchEmbeddings:
         """Should return 400 for empty texts list."""
         with patch("gobber.api.API_KEY", "test-api-key"):
             transport = ASGITransport(app=app)
-            async with AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/embeddings/batch",
                     json={"texts": []},

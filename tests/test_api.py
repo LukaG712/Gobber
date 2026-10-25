@@ -157,9 +157,7 @@ class TestRBAC:
 
 class TestAuth:
     def test_invalid_api_key(self):
-        response = client.get(
-            "/api/webhooks", headers={"Authorization": "Bearer wrong-key"}
-        )
+        response = client.get("/api/webhooks", headers={"Authorization": "***"})
         assert response.status_code == 401
 
     def test_missing_auth(self):

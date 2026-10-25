@@ -169,9 +169,7 @@ class Storage:
 
     def get_webhook(self, webhook_id: str) -> Webhook | None:
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM webhooks WHERE id = ?", (webhook_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM webhooks WHERE id = ?", (webhook_id,)).fetchone()
             if row is None:
                 return None
             return self._row_to_webhook(row)
@@ -179,13 +177,9 @@ class Storage:
     def list_webhooks(self, active_only: bool = False) -> list[Webhook]:
         with self._get_conn() as conn:
             if active_only:
-                rows = conn.execute(
-                    "SELECT * FROM webhooks WHERE is_active = 1 ORDER BY created_at DESC"
-                ).fetchall()
+                rows = conn.execute("SELECT * FROM webhooks WHERE is_active = 1 ORDER BY created_at DESC").fetchall()
             else:
-                rows = conn.execute(
-                    "SELECT * FROM webhooks ORDER BY created_at DESC"
-                ).fetchall()
+                rows = conn.execute("SELECT * FROM webhooks ORDER BY created_at DESC").fetchall()
             return [self._row_to_webhook(r) for r in rows]
 
     def update_webhook(self, webhook_id: str, **kwargs: Any) -> Webhook | None:
@@ -244,9 +238,7 @@ class Storage:
             )
         return delivery
 
-    def list_deliveries(
-        self, webhook_id: str | None = None, limit: int = 50
-    ) -> list[WebhookDelivery]:
+    def list_deliveries(self, webhook_id: str | None = None, limit: int = 50) -> list[WebhookDelivery]:
         with self._get_conn() as conn:
             if webhook_id:
                 rows = conn.execute(
@@ -336,9 +328,7 @@ class Storage:
 
     def get_feature_flag(self, name: str) -> FeatureFlag | None:
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM feature_flags WHERE name = ?", (name,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM feature_flags WHERE name = ?", (name,)).fetchone()
             if row is None:
                 return None
             return self._row_to_flag(row)
@@ -368,9 +358,7 @@ class Storage:
             return self.get_feature_flag(name)
         values.append(name)
         with self._get_conn() as conn:
-            conn.execute(
-                f"UPDATE feature_flags SET {', '.join(sets)} WHERE name = ?", values
-            )
+            conn.execute(f"UPDATE feature_flags SET {', '.join(sets)} WHERE name = ?", values)
         return self.get_feature_flag(name)
 
     def delete_feature_flag(self, name: str) -> bool:
@@ -406,9 +394,7 @@ class Storage:
 
     def get_cache(self, key: str) -> CacheEntry | None:
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM cache_entries WHERE key = ?", (key,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM cache_entries WHERE key = ?", (key,)).fetchone()
             if row is None:
                 return None
             entry = self._row_to_cache(row)
@@ -447,9 +433,7 @@ class Storage:
 
     def get_role(self, role_id: str) -> Role | None:
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM roles WHERE id = ?", (role_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM roles WHERE id = ?", (role_id,)).fetchone()
             if row is None:
                 return None
             return self._row_to_role(row)

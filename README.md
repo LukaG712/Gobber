@@ -38,18 +38,22 @@ docker compose up -d Gobber
 export OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 
 # Index the vault
-curl -X POST "http://localhost:8085/api/vault/index?x_key=Gobber-dev-key-change-me"
+curl -X POST "http://localhost:8085/api/vault/index" \
+  -H "Authorization: Bearer YOUR_API_KEY"
 
 # Search for notes
-curl -X POST "http://localhost:8085/api/vault/search?x_key=Gobber-dev-key-change-me" \
+curl -X POST "http://localhost:8085/api/vault/search" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "artificial intelligence"}'
 
 # Get note links
-curl "http://localhost:8085/api/vault/notes/{note_id}/links?x_key=Gobber-dev-key-change-me"
+curl "http://localhost:8085/api/vault/notes/{note_id}/links" \
+  -H "Authorization: Bearer YOUR_API_KEY"
 
 # Get related notes
-curl "http://localhost:8085/api/vault/notes/{note_id}/related?x_key=Gobber-dev-key-change-me"
+curl "http://localhost:8085/api/vault/notes/{note_id}/related" \
+  -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### API Endpoints
@@ -65,6 +69,45 @@ curl "http://localhost:8085/api/vault/notes/{note_id}/related?x_key=Gobber-dev-k
 | `DELETE` | `/api/vault/notes/{id}` | Remove a note from the index |
 | `GET` | `/api/vault/stats` | Indexing statistics |
 
+## Vector Embeddings API
+
+Gobber provides standalone embedding generation and semantic search endpoints.
+
+### Quick Start
+
+```bash
+# Generate an embedding
+curl -X POST "http://localhost:8085/api/embeddings/generate" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "artificial intelligence"}'
+
+# Semantic search
+curl -X POST "http://localhost:8085/api/embeddings/search" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "machine learning", "limit": 10}'
+
+# Batch embeddings
+curl -X POST "http://localhost:8085/api/embeddings/batch" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["text 1", "text 2", "text 3"]}'
+
+# Embedding statistics
+curl "http://localhost:8085/api/embeddings/stats" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Embedding Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/embeddings/generate` | Generate an embedding vector for text |
+| `POST` | `/api/embeddings/search` | Semantic search using vector embeddings |
+| `GET` | `/api/embeddings/stats` | Get embedding statistics |
+| `POST` | `/api/embeddings/batch` | Generate embeddings for multiple texts |
+
 ## Quick Start
 
 ```bash
@@ -78,9 +121,48 @@ python -m uvicorn gobber.api:app --host 0.0.0.0 --port 8085
 
 ## API
 
+All API endpoints require Bearer token authentication via the `Authorization` header:
+
+```
+Authorization: Bearer YOUR_API_KEY
+```
+
 - **Swagger UI:** `http://localhost:8085/docs`
 - **ReDoc:** `http://localhost:8085/redoc`
 - **Prometheus Metrics:** `http://localhost:8085/metrics` (no auth, internal scrape)
+- **Health Check:** `http://localhost:8085/health` (no auth)
+- **Capabilities:** `http://localhost:8085/api/capabilities` (no auth)
+
+### All API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `GET` | `/api/capabilities` | Service info and features |
+| `POST` | `/api/webhooks` | Create a webhook |
+| `GET` | `/api/webhooks` | List webhooks |
+| `GET` | `/api/webhooks/{id}` | Get a webhook |
+| `PATCH` | `/api/webhooks/{id}` | Update a webhook |
+| `DELETE` | `/api/webhooks/{id}` | Delete a webhook |
+| `POST` | `/api/webhooks/{id}/deliveries` | Create a webhook delivery log |
+| `GET` | `/api/webhooks/{id}/deliveries` | List webhook deliveries |
+| `POST` | `/api/analytics/events` | Record an analytics event |
+| `GET` | `/api/analytics/events` | Query analytics events |
+| `POST` | `/api/flags` | Create a feature flag |
+| `GET` | `/api/flags` | List feature flags |
+| `GET` | `/api/flags/{name}` | Get a feature flag |
+| `PATCH` | `/api/flags/{name}` | Update a feature flag |
+| `DELETE` | `/api/flags/{name}` | Delete a feature flag |
+| `POST` | `/api/cache` | Set a cache entry |
+| `GET` | `/api/cache/{key}` | Get a cache entry |
+| `DELETE` | `/api/cache/{key}` | Delete a cache entry |
+| `POST` | `/api/roles` | Create a role |
+| `GET` | `/api/roles` | List roles |
+| `GET` | `/api/roles/{id}` | Get a role |
+| `DELETE` | `/api/roles/{id}` | Delete a role |
+| `POST` | `/api/users/{user_id}/roles` | Assign a role to a user |
+| `GET` | `/api/users/{user_id}/roles` | Get user roles |
+| `DELETE` | `/api/users/{user_id}/roles/{role_id}` | Revoke a user role |
 
 ## Configuration
 
@@ -109,7 +191,7 @@ Set `OBSIDIAN_VAULT_PATH` to your vault directory, then call `POST /api/vault/in
 
 ### What does `/api/capabilities` return?
 
-It returns the service name, version, and features: storage, webhooks, analytics, rbac, feature_flags, cache, knowledge_graph, vector_embeddings, obsidian_indexing, prometheus_metrics, opentelemetry.
+It returns the service name, version (1.1.0), and features: storage, webhooks, analytics, rbac, feature_flags, cache, knowledge_graph, vector_embeddings, obsidian_indexing, prometheus_metrics, opentelemetry.
 
 ### Does Gobber use Redis?
 

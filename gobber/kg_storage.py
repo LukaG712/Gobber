@@ -103,9 +103,7 @@ class KnowledgeGraphStorage:
     def get_note(self, note_id: str) -> Note | None:
         """Get a note by ID."""
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM notes WHERE id = ?", (note_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
             if row is None:
                 return None
             return self._row_to_note(row)
@@ -113,9 +111,7 @@ class KnowledgeGraphStorage:
     def get_note_by_path(self, file_path: str) -> Note | None:
         """Get a note by file path."""
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM notes WHERE file_path = ?", (file_path,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM notes WHERE file_path = ?", (file_path,)).fetchone()
             if row is None:
                 return None
             return self._row_to_note(row)
@@ -212,9 +208,7 @@ class KnowledgeGraphStorage:
     def get_embedding(self, note_id: str) -> list[float] | None:
         """Get the embedding vector for a note."""
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT embedding FROM note_embeddings WHERE note_id = ?", (note_id,)
-            ).fetchone()
+            row = conn.execute("SELECT embedding FROM note_embeddings WHERE note_id = ?", (note_id,)).fetchone()
             if row is None:
                 return None
             return json.loads(row["embedding"])
@@ -278,9 +272,7 @@ class KnowledgeGraphStorage:
                 results = {nid: s / max_score for nid, s in results.items()}
 
         # Sort by score descending and limit
-        sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)[
-            :limit
-        ]
+        sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)[:limit]
         return sorted_results
 
     def hybrid_search(
@@ -313,9 +305,7 @@ class KnowledgeGraphStorage:
         # Get semantic results
         semantic_results: dict[str, float] = {}
         with self._get_conn() as conn:
-            rows = conn.execute(
-                "SELECT note_id, embedding FROM note_embeddings"
-            ).fetchall()
+            rows = conn.execute("SELECT note_id, embedding FROM note_embeddings").fetchall()
 
         for row in rows:
             note_embedding = json.loads(row["embedding"])
@@ -339,9 +329,7 @@ class KnowledgeGraphStorage:
                 combined_scores[note_id] = combined
 
         # Sort by combined score descending and limit
-        sorted_results = sorted(
-            combined_scores.items(), key=lambda x: x[1], reverse=True
-        )[:limit]
+        sorted_results = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)[:limit]
 
         # Fetch full note data with optional scoping
         search_results = []
@@ -355,12 +343,8 @@ class KnowledgeGraphStorage:
                     continue
 
                 note_embedding = self.get_embedding(note_id)
-                context = extract_relevant_context(
-                    note.content, query_embedding, note_embedding
-                )
-                search_results.append(
-                    SearchResult(note=note, score=score, context=context)
-                )
+                context = extract_relevant_context(note.content, query_embedding, note_embedding)
+                search_results.append(SearchResult(note=note, score=score, context=context))
 
         return search_results
 
@@ -382,9 +366,7 @@ class KnowledgeGraphStorage:
             session_id: Optional session ID to scope results.
         """
         with self._get_conn() as conn:
-            rows = conn.execute(
-                "SELECT note_id, embedding FROM note_embeddings"
-            ).fetchall()
+            rows = conn.execute("SELECT note_id, embedding FROM note_embeddings").fetchall()
 
         results = []
         for row in rows:
@@ -409,12 +391,8 @@ class KnowledgeGraphStorage:
                     continue
 
                 note_embedding = self.get_embedding(note_id)
-                context = extract_relevant_context(
-                    note.content, query_embedding, note_embedding
-                )
-                search_results.append(
-                    SearchResult(note=note, score=score, context=context)
-                )
+                context = extract_relevant_context(note.content, query_embedding, note_embedding)
+                search_results.append(SearchResult(note=note, score=score, context=context))
 
         return search_results
 
@@ -424,9 +402,7 @@ class KnowledgeGraphStorage:
         if embedding is None:
             return []
 
-        results = self.semantic_search(
-            embedding, limit=limit + 1
-        )  # +1 to exclude the note itself
+        results = self.semantic_search(embedding, limit=limit + 1)  # +1 to exclude the note itself
         return [r for r in results if r.note.id != UUID(note_id)][:limit]
 
     # ─── Statistics ───────────────────────────────────────────
@@ -437,14 +413,10 @@ class KnowledgeGraphStorage:
         link_count = self.count_links()
 
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT MAX(updated_at) as last_updated FROM notes"
-            ).fetchone()
+            row = conn.execute("SELECT MAX(updated_at) as last_updated FROM notes").fetchone()
             last_updated = row["last_updated"] if row and row["last_updated"] else None
 
-            emb_row = conn.execute(
-                "SELECT COUNT(*) as cnt FROM note_embeddings"
-            ).fetchone()
+            emb_row = conn.execute("SELECT COUNT(*) as cnt FROM note_embeddings").fetchone()
             embedded_count = emb_row["cnt"]
 
         return {

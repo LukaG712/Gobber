@@ -42,9 +42,7 @@ class Webhook:
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat(),
             "delivery_count": self.delivery_count,
-            "last_delivery_at": self.last_delivery_at.isoformat()
-            if self.last_delivery_at
-            else None,
+            "last_delivery_at": self.last_delivery_at.isoformat() if self.last_delivery_at else None,
         }
 
 
@@ -144,9 +142,7 @@ class CacheEntry:
         self.value = value
         self.ttl_seconds = ttl_seconds
         self.created_at = created_at or datetime.now(UTC)
-        self.expires_at = (
-            self.created_at + timedelta(seconds=ttl_seconds) if ttl_seconds else None
-        )
+        self.expires_at = self.created_at + timedelta(seconds=ttl_seconds) if ttl_seconds else None
 
     def is_expired(self) -> bool:
         if self.expires_at is None:
