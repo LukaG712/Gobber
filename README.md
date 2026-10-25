@@ -1,5 +1,8 @@
 # Gobber
 
+> *"I'll send all the ghosts and trinkets you collect during your adventure down the Vault for safekeeping. Check 'em out, sonny!"*
+> ~ **Prof. E. Gadd**, Luigi's Mansion: Dark Moon
+
 **Gobber** is the persistent storage service for the Evershade ecosystem. It provides a centralized data layer for webhooks, analytics, RBAC, cache, and feature flags ~ solving the in-memory data loss problem when services restart.
 
 **Luigi's Mansion origin:** *Gobber* ~ blob-like ghosts from Luigi's Mansion: Dark Moon that absorb and store everything in their path.
