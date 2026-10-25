@@ -4,14 +4,15 @@ import hmac
 import os
 import time
 import uuid
-from typing import Any
-
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import Response
+
 try:
-    from prometheus_client import Counter, Gauge, Histogram, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+
     HAS_PROMETHEUS = True
 except ImportError:
     HAS_PROMETHEUS = False

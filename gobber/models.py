@@ -1,6 +1,6 @@
 """Data models for Gobber storage service."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
@@ -29,7 +29,7 @@ class Webhook:
         self.events = events
         self.secret = secret
         self.is_active = is_active
-        self.created_at = created_at or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(UTC)
         self.delivery_count = 0
         self.last_delivery_at: datetime | None = None
 
@@ -61,7 +61,7 @@ class WebhookDelivery:
         self.event = event
         self.payload = payload
         self.status = status
-        self.created_at = created_at or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(UTC)
         self.response_status: int | None = None
         self.error_message: str | None = None
 
@@ -90,7 +90,7 @@ class AnalyticsEvent:
         self.event_type = event_type
         self.properties = properties
         self.service = service
-        self.created_at = created_at or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -117,7 +117,7 @@ class FeatureFlag:
         self.is_enabled = is_enabled
         self.description = description
         self.targeting = targeting or {}
-        self.created_at = created_at or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -141,15 +141,13 @@ class CacheEntry:
         self.key = key
         self.value = value
         self.ttl_seconds = ttl_seconds
-        self.created_at = created_at or datetime.now(timezone.utc)
-        self.expires_at = (
-            self.created_at + timedelta(seconds=ttl_seconds) if ttl_seconds else None
-        )
+        self.created_at = created_at or datetime.now(UTC)
+        self.expires_at = self.created_at + timedelta(seconds=ttl_seconds) if ttl_seconds else None
 
     def is_expired(self) -> bool:
         if self.expires_at is None:
             return False
-        return datetime.now(timezone.utc) > self.expires_at
+        return datetime.now(UTC) > self.expires_at
 
     def to_dict(self) -> dict[str, Any]:
         return {
