@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+
 from gobber.kg_models import Note
 from gobber.kg_storage import KnowledgeGraphStorage, cosine_similarity
 from gobber.knowledge_graph import KnowledgeGraph

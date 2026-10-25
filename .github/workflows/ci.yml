@@ -21,7 +21,7 @@ jobs:
 
       - name: Install linting tools
         run: |
-          pip install ruff
+          pip install ruff==0.9.0
 
       - name: Python linting (ruff)
         run: |
