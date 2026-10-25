@@ -27,7 +27,7 @@ from gobber.models import (
     Webhook,
     WebhookDelivery,
 )
-from gobber.storage import Storage
+from gobber.storage import Storage, _default_db_path
 
 _api_key_raw = os.getenv("API_KEY")
 if not _api_key_raw:
@@ -35,7 +35,7 @@ if not _api_key_raw:
         "API_KEY environment variable is not set. Refusing to start Gobber without a configured API key."
     )
 API_KEY = _api_key_raw
-storage = Storage(db_path=os.getenv("DB_PATH", "/app/data/gobber.db"))
+storage = Storage(db_path=os.getenv("DB_PATH") or _default_db_path())
 kg = KnowledgeGraph()
 
 

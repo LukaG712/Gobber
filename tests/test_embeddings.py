@@ -1,9 +1,13 @@
 """Tests for Gobber vector embeddings API."""
 
+import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+
+# Set API_KEY BEFORE importing the app module
+os.environ["API_KEY"] = "test-api-key"
 
 from gobber.api import app
 

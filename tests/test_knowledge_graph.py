@@ -119,6 +119,18 @@ def client(tmp_db, tmp_vault):
     os.environ["API_KEY"] = "test-key"
     os.environ["OBSIDIAN_VAULT_PATH"] = str(tmp_vault)
 
+    # Clean up Prometheus registry before reload to avoid duplicate metrics
+    try:
+        from prometheus_client import REGISTRY
+
+        for collector in list(REGISTRY._names_to_collectors.values()):
+            try:
+                REGISTRY.unregister(collector)
+            except Exception:
+                pass
+    except ImportError:
+        pass
+
     # Reload the module to pick up new env vars
     importlib.reload(api_module)
 
