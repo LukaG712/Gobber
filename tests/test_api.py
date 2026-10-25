@@ -28,7 +28,13 @@ def temp_db():
         import sqlite3
 
         conn = sqlite3.connect(db_path)
-        for table in ["webhooks", "feature_flags", "cache_entries", "roles", "role_permissions"]:
+        for table in [
+            "webhooks",
+            "feature_flags",
+            "cache_entries",
+            "roles",
+            "role_permissions",
+        ]:
             conn.execute(f"DELETE FROM {table}")
         conn.commit()
         conn.close()
@@ -57,7 +63,11 @@ class TestWebhooks:
     def test_create_webhook(self):
         response = client.post(
             "/api/webhooks",
-            json={"name": "test", "url": "https://example.com", "events": ["test.event"]},
+            json={
+                "name": "test",
+                "url": "https://example.com",
+                "events": ["test.event"],
+            },
             headers=HEADERS,
         )
         assert response.status_code == 200
@@ -82,7 +92,11 @@ class TestFeatureFlags:
         flag_name = f"dark-mode-{uuid.uuid4().hex[:6]}"
         response = client.post(
             "/api/flags",
-            json={"name": flag_name, "is_enabled": True, "description": "Enable dark mode"},
+            json={
+                "name": flag_name,
+                "is_enabled": True,
+                "description": "Enable dark mode",
+            },
             headers=HEADERS,
         )
         assert response.status_code == 200
@@ -101,7 +115,11 @@ class TestCache:
         # Set
         response = client.post(
             "/api/cache",
-            json={"key": "test-key-cache", "value": {"hello": "world"}, "ttl_seconds": 300},
+            json={
+                "key": "test-key-cache",
+                "value": {"hello": "world"},
+                "ttl_seconds": 300,
+            },
             headers=HEADERS,
         )
         assert response.status_code == 200
@@ -120,7 +138,11 @@ class TestRBAC:
         role_name = f"admin-{uuid.uuid4().hex[:6]}"
         response = client.post(
             "/api/roles",
-            json={"name": role_name, "permissions": ["read", "write"], "description": "Admin role"},
+            json={
+                "name": role_name,
+                "permissions": ["read", "write"],
+                "description": "Admin role",
+            },
             headers=HEADERS,
         )
         assert response.status_code == 200
@@ -135,7 +157,9 @@ class TestRBAC:
 
 class TestAuth:
     def test_invalid_api_key(self):
-        response = client.get("/api/webhooks", headers={"Authorization": "Bearer wrong-key"})
+        response = client.get(
+            "/api/webhooks", headers={"Authorization": "Bearer wrong-key"}
+        )
         assert response.status_code == 401
 
     def test_missing_auth(self):

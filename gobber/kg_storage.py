@@ -103,7 +103,9 @@ class KnowledgeGraphStorage:
     def get_note(self, note_id: str) -> Note | None:
         """Get a note by ID."""
         with self._get_conn() as conn:
-            row = conn.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM notes WHERE id = ?", (note_id,)
+            ).fetchone()
             if row is None:
                 return None
             return self._row_to_note(row)
@@ -111,7 +113,9 @@ class KnowledgeGraphStorage:
     def get_note_by_path(self, file_path: str) -> Note | None:
         """Get a note by file path."""
         with self._get_conn() as conn:
-            row = conn.execute("SELECT * FROM notes WHERE file_path = ?", (file_path,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM notes WHERE file_path = ?", (file_path,)
+            ).fetchone()
             if row is None:
                 return None
             return self._row_to_note(row)
@@ -128,7 +132,10 @@ class KnowledgeGraphStorage:
     def delete_note(self, note_id: str) -> bool:
         """Delete a note and its associated data."""
         with self._get_conn() as conn:
-            conn.execute("DELETE FROM note_links WHERE source_note_id = ? OR target_note_id = ?", (note_id, note_id))
+            conn.execute(
+                "DELETE FROM note_links WHERE source_note_id = ? OR target_note_id = ?",
+                (note_id, note_id),
+            )
             conn.execute("DELETE FROM note_embeddings WHERE note_id = ?", (note_id,))
             result = conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
             return result.rowcount > 0
@@ -144,7 +151,10 @@ class KnowledgeGraphStorage:
     def upsert_links(self, source_note_id: UUID, target_note_ids: list[UUID]) -> None:
         """Update links for a note — removes old links and inserts new ones."""
         with self._get_conn() as conn:
-            conn.execute("DELETE FROM note_links WHERE source_note_id = ?", (str(source_note_id),))
+            conn.execute(
+                "DELETE FROM note_links WHERE source_note_id = ?",
+                (str(source_note_id),),
+            )
             for target_id in target_note_ids:
                 conn.execute(
                     "INSERT OR IGNORE INTO note_links (source_note_id, target_note_id) VALUES (?, ?)",
@@ -191,13 +201,20 @@ class KnowledgeGraphStorage:
                        embedding=excluded.embedding,
                        dimensions=excluded.dimensions,
                        created_at=excluded.created_at""",
-                (note_id, json.dumps(embedding), len(embedding), datetime.now(UTC).isoformat()),
+                (
+                    note_id,
+                    json.dumps(embedding),
+                    len(embedding),
+                    datetime.now(UTC).isoformat(),
+                ),
             )
 
     def get_embedding(self, note_id: str) -> list[float] | None:
         """Get the embedding vector for a note."""
         with self._get_conn() as conn:
-            row = conn.execute("SELECT embedding FROM note_embeddings WHERE note_id = ?", (note_id,)).fetchone()
+            row = conn.execute(
+                "SELECT embedding FROM note_embeddings WHERE note_id = ?", (note_id,)
+            ).fetchone()
             if row is None:
                 return None
             return json.loads(row["embedding"])
@@ -261,7 +278,9 @@ class KnowledgeGraphStorage:
                 results = {nid: s / max_score for nid, s in results.items()}
 
         # Sort by score descending and limit
-        sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)[:limit]
+        sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)[
+            :limit
+        ]
         return sorted_results
 
     def hybrid_search(
@@ -294,7 +313,9 @@ class KnowledgeGraphStorage:
         # Get semantic results
         semantic_results: dict[str, float] = {}
         with self._get_conn() as conn:
-            rows = conn.execute("SELECT note_id, embedding FROM note_embeddings").fetchall()
+            rows = conn.execute(
+                "SELECT note_id, embedding FROM note_embeddings"
+            ).fetchall()
 
         for row in rows:
             note_embedding = json.loads(row["embedding"])
@@ -318,7 +339,9 @@ class KnowledgeGraphStorage:
                 combined_scores[note_id] = combined
 
         # Sort by combined score descending and limit
-        sorted_results = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)[:limit]
+        sorted_results = sorted(
+            combined_scores.items(), key=lambda x: x[1], reverse=True
+        )[:limit]
 
         # Fetch full note data with optional scoping
         search_results = []
@@ -332,8 +355,12 @@ class KnowledgeGraphStorage:
                     continue
 
                 note_embedding = self.get_embedding(note_id)
-                context = extract_relevant_context(note.content, query_embedding, note_embedding)
-                search_results.append(SearchResult(note=note, score=score, context=context))
+                context = extract_relevant_context(
+                    note.content, query_embedding, note_embedding
+                )
+                search_results.append(
+                    SearchResult(note=note, score=score, context=context)
+                )
 
         return search_results
 
@@ -355,7 +382,9 @@ class KnowledgeGraphStorage:
             session_id: Optional session ID to scope results.
         """
         with self._get_conn() as conn:
-            rows = conn.execute("SELECT note_id, embedding FROM note_embeddings").fetchall()
+            rows = conn.execute(
+                "SELECT note_id, embedding FROM note_embeddings"
+            ).fetchall()
 
         results = []
         for row in rows:
@@ -380,8 +409,12 @@ class KnowledgeGraphStorage:
                     continue
 
                 note_embedding = self.get_embedding(note_id)
-                context = extract_relevant_context(note.content, query_embedding, note_embedding)
-                search_results.append(SearchResult(note=note, score=score, context=context))
+                context = extract_relevant_context(
+                    note.content, query_embedding, note_embedding
+                )
+                search_results.append(
+                    SearchResult(note=note, score=score, context=context)
+                )
 
         return search_results
 
@@ -391,7 +424,9 @@ class KnowledgeGraphStorage:
         if embedding is None:
             return []
 
-        results = self.semantic_search(embedding, limit=limit + 1)  # +1 to exclude the note itself
+        results = self.semantic_search(
+            embedding, limit=limit + 1
+        )  # +1 to exclude the note itself
         return [r for r in results if r.note.id != UUID(note_id)][:limit]
 
     # ─── Statistics ───────────────────────────────────────────
@@ -402,10 +437,14 @@ class KnowledgeGraphStorage:
         link_count = self.count_links()
 
         with self._get_conn() as conn:
-            row = conn.execute("SELECT MAX(updated_at) as last_updated FROM notes").fetchone()
+            row = conn.execute(
+                "SELECT MAX(updated_at) as last_updated FROM notes"
+            ).fetchone()
             last_updated = row["last_updated"] if row and row["last_updated"] else None
 
-            emb_row = conn.execute("SELECT COUNT(*) as cnt FROM note_embeddings").fetchone()
+            emb_row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM note_embeddings"
+            ).fetchone()
             embedded_count = emb_row["cnt"]
 
         return {
@@ -448,7 +487,10 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 def extract_relevant_context(
-    content: str, query_embedding: list[float], note_embedding: list[float], max_length: int = 200
+    content: str,
+    query_embedding: list[float],
+    note_embedding: list[float],
+    max_length: int = 200,
 ) -> str | None:
     """Extract a relevant excerpt from the note content."""
     if not content.strip():
