@@ -2,12 +2,19 @@
 
 import hmac
 import os
+import time
 import uuid
 from typing import Any
 
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import Response
+try:
+    from prometheus_client import Counter, Gauge, Histogram, generate_latest, CONTENT_TYPE_LATEST
+    HAS_PROMETHEUS = True
+except ImportError:
+    HAS_PROMETHEUS = False
 
 from gobber.knowledge_graph import KnowledgeGraph
 from gobber.models import (
@@ -65,6 +72,49 @@ def verify_bearer(authorization: str | None = Header(None)) -> None:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "service": "Gobber"}
+
+
+# ─── Prometheus Metrics ─────────────────────────────────────────
+
+if HAS_PROMETHEUS:
+    gobber_http_requests_total = Counter(
+        "gobber_http_requests_total",
+        "Total HTTP requests to Gobber",
+        ["method", "endpoint", "status"],
+    )
+    gobber_http_request_duration = Histogram(
+        "gobber_http_request_duration_seconds",
+        "HTTP request latency in seconds",
+        ["method", "endpoint"],
+        buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+    )
+
+    @app.middleware("http")
+    async def prometheus_middleware(request, call_next):
+        if request.url.path == "/metrics":
+            return await call_next(request)
+        method = request.method
+        endpoint = request.url.path
+        start = time.time()
+        status = "200"
+        try:
+            response = await call_next(request)
+            status = str(response.status_code)
+        except Exception:
+            status = "500"
+        finally:
+            duration = time.time() - start
+            gobber_http_requests_total.labels(method=method, endpoint=endpoint, status=status).inc()
+            gobber_http_request_duration.labels(method=method, endpoint=endpoint).observe(duration)
+        return response
+
+    @app.get("/metrics")
+    async def prometheus_metrics():
+        """Prometheus metrics endpoint for Grafana scraping."""
+        return Response(
+            content=generate_latest().decode("utf-8"),
+            media_type=CONTENT_TYPE_LATEST,
+        )
 
 
 @app.get("/api/capabilities")

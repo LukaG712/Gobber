@@ -77,6 +77,7 @@ python -m uvicorn gobber.api:app --host 0.0.0.0 --port 8085
 
 - **Swagger UI:** `http://localhost:8085/docs`
 - **ReDoc:** `http://localhost:8085/redoc`
+- **Prometheus Metrics:** `http://localhost:8085/metrics` (no auth, internal scrape)
 
 ## Configuration
 
