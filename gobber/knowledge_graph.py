@@ -36,9 +36,13 @@ class KnowledgeGraph:
         self.vault_path = Path(vault_path or os.getenv("OBSIDIAN_VAULT_PATH", ""))
         self.shrewd_url = shrewd_url or os.getenv("SHREWD_URL", "http://localhost:8089")
         self.shrewd_api_key = shrewd_api_key or os.getenv("SHREWD_API_KEY", "")
-        self.embedding_model = embedding_model or os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+        self.embedding_model = embedding_model or os.getenv(
+            "EMBEDDING_MODEL", "nomic-embed-text"
+        )
         self.storage = KnowledgeGraphStorage(db_path or os.getenv("DB_PATH"))
-        self._note_title_map: dict[str, UUID] = {}  # Maps note titles to IDs for link resolution
+        self._note_title_map: dict[
+            str, UUID
+        ] = {}  # Maps note titles to IDs for link resolution
         self._http_client: httpx.AsyncClient | None = None
 
     def _get_client(self) -> httpx.AsyncClient:
@@ -143,13 +147,17 @@ class KnowledgeGraph:
                 data = response.json()
                 return data.get("embedding", data.get("vector"))
             else:
-                logger.warning(f"Shrewd embedding failed: {response.status_code} {response.text}")
+                logger.warning(
+                    f"Shrewd embedding failed: {response.status_code} {response.text}"
+                )
                 return None
         except Exception as e:
             logger.warning(f"Failed to generate embedding via Shrewd: {e}")
             return None
 
-    async def generate_embeddings_batch(self, texts: list[str], batch_size: int = 10) -> list[list[float] | None]:
+    async def generate_embeddings_batch(
+        self, texts: list[str], batch_size: int = 10
+    ) -> list[list[float] | None]:
         """Generate embeddings for multiple texts in a single batch request.
 
         Falls back to individual requests if batch endpoint is not supported.
@@ -185,7 +193,9 @@ class KnowledgeGraph:
                     embeddings.append(None)
                 return embeddings[: len(texts)]
             else:
-                logger.warning(f"Shrewd batch embedding failed: {response.status_code}, falling back to individual")
+                logger.warning(
+                    f"Shrewd batch embedding failed: {response.status_code}, falling back to individual"
+                )
         except Exception as e:
             logger.warning(f"Batch embedding failed, falling back to individual: {e}")
 
@@ -203,7 +213,9 @@ class KnowledgeGraph:
 
         return results
 
-    def _generate_fallback_embedding(self, text: str, dimensions: int = 384) -> list[float]:
+    def _generate_fallback_embedding(
+        self, text: str, dimensions: int = 384
+    ) -> list[float]:
         """Generate a simple hash-based fallback embedding when Shrewd is unavailable."""
         import hashlib
 
@@ -291,7 +303,9 @@ class KnowledgeGraph:
                         self.storage.store_embedding(str(note.id), embedding)
                         stats["embeddings_generated"] += 1
                     except Exception as e:
-                        logger.error(f"Failed to generate embedding for {note.title}: {e}")
+                        logger.error(
+                            f"Failed to generate embedding for {note.title}: {e}"
+                        )
 
         return {"success": True, **stats}
 
@@ -364,7 +378,9 @@ class KnowledgeGraph:
         """Get outgoing links from a note."""
         return self.storage.get_outgoing_links(note_id)
 
-    async def get_related_notes(self, note_id: str, limit: int = 5) -> list[SearchResult]:
+    async def get_related_notes(
+        self, note_id: str, limit: int = 5
+    ) -> list[SearchResult]:
         """Get semantically related notes."""
         return self.storage.get_related_notes(note_id, limit=limit)
 
